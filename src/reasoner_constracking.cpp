@@ -257,6 +257,13 @@ void ConservationTracking::add_disappearance_nodes(const HypothesesGraph& g) {
     for (HypothesesGraph::NodeIt n(g); n != lemon::INVALID; ++n) {
         pgm_->Model()->addVariable(max_number_objects_ + 1);
         dis_node_map_[n] = pgm_->Model()->numberOfVariables() - 1;
+
+        // store these nodes by timestep,
+        // so that we can get all disappearance nodes per timestep for decomposition
+        HypothesesGraph::node_timestep_map& timestep_map = g.get(node_timestep());
+        size_t timestep = timestep_map[n];
+        dis_nodes_by_timestep_[timestep].push_back(pgm_->Model()->numberOfVariables() - 1);
+
         assert(pgm_->Model()->numberOfLabels(dis_node_map_[n]) == max_number_objects_ + 1);
         ++count;
     }
