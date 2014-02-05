@@ -246,6 +246,13 @@ void ConservationTracking::add_appearance_nodes(const HypothesesGraph& g) {
     for (HypothesesGraph::NodeIt n(g); n != lemon::INVALID; ++n) {
         pgm_->Model()->addVariable(max_number_objects_ + 1);
         app_node_map_[n] = pgm_->Model()->numberOfVariables() - 1;
+
+        // store these nodes by timestep,
+        // so that we can get all nodes per timestep for decomposition
+        HypothesesGraph::node_timestep_map& timestep_map = g.get(node_timestep());
+        size_t timestep = timestep_map[n];
+        nodes_by_timestep_[timestep + 1].push_back(pgm_->Model()->numberOfVariables() - 1);
+
         assert(pgm_->Model()->numberOfLabels(app_node_map_[n]) == max_number_objects_ + 1);
         ++count;
     }
@@ -259,10 +266,12 @@ void ConservationTracking::add_disappearance_nodes(const HypothesesGraph& g) {
         dis_node_map_[n] = pgm_->Model()->numberOfVariables() - 1;
 
         // store these nodes by timestep,
-        // so that we can get all disappearance nodes per timestep for decomposition
+        // so that we can get all nodes per timestep for decomposition.
+        // Disappearance nodes are used as duals and thus get duplicated to the next timestep
         HypothesesGraph::node_timestep_map& timestep_map = g.get(node_timestep());
         size_t timestep = timestep_map[n];
-        dis_nodes_by_timestep_[timestep].push_back(pgm_->Model()->numberOfVariables() - 1);
+        nodes_by_timestep_[timestep].push_back(pgm_->Model()->numberOfVariables() - 1);
+        nodes_by_timestep_[timestep + 1].push_back(pgm_->Model()->numberOfVariables() - 1);
 
         assert(pgm_->Model()->numberOfLabels(dis_node_map_[n]) == max_number_objects_ + 1);
         ++count;
@@ -275,6 +284,16 @@ void ConservationTracking::add_transition_nodes(const HypothesesGraph& g) {
     for (HypothesesGraph::ArcIt a(g); a != lemon::INVALID; ++a) {
         pgm_->Model()->addVariable(max_number_objects_ + 1);
         arc_map_[a] = pgm_->Model()->numberOfVariables() - 1;
+
+        // store these nodes by the timestep of the base-appearance node,
+        // so that we can get all nodes per timestep for decomposition
+        HypothesesGraph::node_timestep_map& timestep_map = g.get(node_timestep());
+        HypothesesGraph::OutArcIt out_arc(g, a);
+        HypothesesGraph::Node n = g.baseNode(out_arc);
+
+        size_t timestep = timestep_map[n];
+        nodes_by_timestep_[timestep].push_back(pgm_->Model()->numberOfVariables() - 1);
+
         assert(pgm_->Model()->numberOfLabels(arc_map_[a]) == max_number_objects_ + 1);
         ++count;
     }
@@ -291,6 +310,13 @@ void ConservationTracking::add_division_nodes(const HypothesesGraph& g) {
         if (number_of_outarcs > 1) {
             pgm_->Model()->addVariable(2);
             div_node_map_[n] = pgm_->Model()->numberOfVariables() - 1;
+
+            // store these nodes by timestep,
+            // so that we can get all nodes per timestep for decomposition
+            HypothesesGraph::node_timestep_map& timestep_map = g.get(node_timestep());
+            size_t timestep = timestep_map[n];
+            nodes_by_timestep_[timestep + 1].push_back(pgm_->Model()->numberOfVariables() - 1);
+
             assert(pgm_->Model()->numberOfLabels(div_node_map_[n]) == 2);
             ++count;
         }

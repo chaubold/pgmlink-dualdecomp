@@ -183,6 +183,105 @@ void pgmlink::DualDecompositionConservationTracking::debug_graph_output(Graphica
     exit(0);
 }
 
+
+
+void pgmlink::DualDecompositionConservationTracking::decompose_graph(
+        GraphicalModelType* model,
+        DualDecompositionSubGradient::Parameter& dd_parameter)
+{
+    opengm::GraphicalModelDecomposer<GraphicalModelType> decomposer;
+    opengm::GraphicalModelDecomposer<GraphicalModelType>::DecompositionType decomposition(
+                model->numberOfVariables(),model->numberOfFactors(),0);
+
+    // TODO: make this a parameter
+    const size_t timesteps_per_block = 10;
+    const size_t num_time_steps = nodes_by_timestep_.size() + 1; // TODO: this doesnt go far enough!
+    size_t num_sub_models = num_time_steps / timesteps_per_block;
+
+    if(num_time_steps % timesteps_per_block != 0)
+    {
+        num_sub_models++;
+    }
+
+    for(size_t sub_model_id = 0; sub_model_id < num_sub_models; ++sub_model_id)
+    {
+        decomposition.addSubModel();
+
+        std::vector<size_t> sub_variable_map(model->numberOfVariables(),
+                                             std::numeric_limits<std::size_t>::max());
+
+        // add all variables to their submodels
+        for(size_t timestep = sub_model_id * timesteps_per_block;
+            timestep < std::min((sub_model_id + 1) * timesteps_per_block, num_time_steps);
+            ++timestep)
+        {
+            std::vector<size_t>& nodes_at_timestep = nodes_by_timestep_[timestep];
+
+            for(std::vector<size_t>::iterator node = nodes_at_timestep.begin();
+                node != nodes_at_timestep.end();
+                ++node)
+            {
+                sub_variable_map[*node] = decomposition.addSubVariable(sub_model_id, *node);
+            }
+        }
+
+        // add factors to the submodels in which all linked variables are found
+        for(size_t factor_id = 0; factor_id < model->numberOfFactors(); ++factor_id)
+        {
+            if((*model)[factor_id].numberOfVariables() == 0)
+            {
+               std::vector<size_t> sub_variable_indices(0);
+               decomposition.addSubFactor(sub_model_id, factor_id, sub_variable_indices);
+            }
+            else
+            {
+                std::vector<size_t> sub_variable_indices((*model)[factor_id].numberOfVariables());
+                bool all_variables_inside_submodel = true;
+
+                for(size_t i = 0; i < (*model)[factor_id].numberOfVariables(); ++i) {
+                    const size_t var_id = (*model)[factor_id].variableIndex(i);
+                    sub_variable_indices[i] = sub_variable_map[var_id];
+
+                    bool found = (sub_variable_map[var_id] != std::numeric_limits<std::size_t>::max());
+
+                    all_variables_inside_submodel = all_variables_inside_submodel && found;
+                }
+
+                if(all_variables_inside_submodel)
+                {
+                    decomposition.addSubFactor(sub_model_id, factor_id, sub_variable_indices);
+                }
+            }
+        }
+    }
+    dd_parameter.decomposition_.reorder();
+    std::cout << "done reordering, completing... " << std::endl;
+    dd_parameter.decomposition_.complete();
+
+
+    //dd_parameter.decomposition_ = decomposer.decomposeIntoClosedBlocks(*model, 2);
+    dd_parameter.decomposition_ = decomposition;
+    std::cout << "Decomposed into " << dd_parameter.decomposition_.numberOfSubModels()
+              << " submodels" << std::endl;
+
+    for(unsigned int i = 0; i < dd_parameter.decomposition_.numberOfSubModels(); i++)
+    {
+        std::cout << "\tSubproblem " << i << ": "
+                  << dd_parameter.decomposition_.numberOfSubFactors(i) << " factors and "
+                  << dd_parameter.decomposition_.numberOfSubVariables(i) << " variables" << std::endl;
+    }
+
+
+    if(!dd_parameter.decomposition_.isValid(*model))
+    {
+        std::cout << "ERROR: Model decomposition is invalid!!!!!!!!!" << std::endl;
+    }
+    else
+    {
+        std::cout << "Model decomposition valid!" << std::endl;
+    }
+}
+
 void pgmlink::DualDecompositionConservationTracking::infer()
 {
     if (!with_constraints_) {
@@ -198,34 +297,12 @@ void pgmlink::DualDecompositionConservationTracking::infer()
     std::cout << "Original Graph had: " << model->numberOfFactors() << " factors and "
               << model->numberOfVariables() << " variables" << std::endl;
 
-    opengm::GraphicalModelDecomposer<GraphicalModelType> decomposer;
-    dd_parameter.decomposition_ = decomposer.decomposeIntoClosedBlocks(*model, 2);
-    std::cout << "Decomposed into " << dd_parameter.decomposition_.numberOfSubModels() << " submodels" << std::endl;
-
-    for(unsigned int i = 0; i < dd_parameter.decomposition_.numberOfSubModels(); i++)
-    {
-        std::cout << "\tSubproblem " << i << ": "
-                  << dd_parameter.decomposition_.numberOfSubFactors(i) << " factors and "
-                  << dd_parameter.decomposition_.numberOfSubVariables(i) << " variables" << std::endl;
-    }
-
-    dd_parameter.decomposition_.reorder();
-    std::cout << "done reordering, completing... " << std::endl;
-    dd_parameter.decomposition_.complete();
-
-    if(!dd_parameter.decomposition_.isValid(*model))
-    {
-        std::cout << "ERROR: Model decomposition is invalid!!!!!!!!!" << std::endl;
-    }
-    else
-    {
-        std::cout << "Model decomposition valid!" << std::endl;
-    }
+    decompose_graph(model, dd_parameter);
 
 //    debug_graph_output(model);
 
     dd_parameter.decompositionId_ = DualDecompositionSubGradient::Parameter::MANUAL;
-    dd_parameter.maximalDualOrder_ = 4;
+    dd_parameter.maximalDualOrder_ = 2;
     dd_parameter.subPara_.verbose_ = true;
     dd_parameter.subPara_.integerConstraint_ = true;
     dd_parameter.subPara_.epGap_ = ep_gap_;

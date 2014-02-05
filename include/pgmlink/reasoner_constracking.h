@@ -124,7 +124,7 @@ protected:
     std::map<HypothesesGraph::Node, size_t> app_node_map_;
     std::map<HypothesesGraph::Node, size_t> dis_node_map_;
     std::map<HypothesesGraph::Arc, size_t> arc_map_;
-    std::map< size_t, std::vector<size_t> > dis_nodes_by_timestep_;
+    std::map< size_t, std::vector<size_t> > nodes_by_timestep_;
 
     double ep_gap_;
 

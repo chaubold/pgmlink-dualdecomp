@@ -58,6 +58,7 @@ public:
                         int lower, int higher, const char *name);
     void debug_graph_output(GraphicalModelType* model);
     void constraint_debug_output(const pgmlink::DualDecompositionConservationTracking::DualDecompositionSubGradient::SubGmType& subGM);
+    void decompose_graph(GraphicalModelType* model, DualDecompositionSubGradient::Parameter& dd_parameter);
 protected:
     virtual void extractSolution(std::vector<pgm::OpengmModelDeprecated::ogmInference::LabelType> &solution);
     virtual void add_constraints( const HypothesesGraph& );
