@@ -286,7 +286,8 @@ struct ConservationTrackingParameters{
           double transition_parameter = 5.,
           double border_width = 0,
           FieldOfView fov = FieldOfView(),
-          bool with_constraints = true
+          bool with_constraints = true,
+          int timesteps_per_block = 10
           )
         : ConsTracking(max_number_objects,
                        max_neighbor_distance,
@@ -307,13 +308,17 @@ struct ConservationTrackingParameters{
                        transition_parameter,
                        border_width,
                        fov,
-                       with_constraints){}
+                       with_constraints),
+      timesteps_per_block_(timesteps_per_block)
+      {}
 
       virtual ~ConsTrackingDD(){}
 
   protected:
       virtual ConservationTracking *setupConsTracker(
               ConservationTrackingParameters* params);
+
+      int timesteps_per_block_;
     };
 }
 

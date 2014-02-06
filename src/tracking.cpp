@@ -474,7 +474,8 @@ ConservationTracking* ConsTrackingDD::setupConsTracker(ConservationTrackingParam
                 params->with_appearance_,
                 params->with_disappearance_,
                 params->transition_parameter_,
-                params->with_constraints_);
+                params->with_constraints_,
+                timesteps_per_block_);
 }
 
 } // namespace tracking

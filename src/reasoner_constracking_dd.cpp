@@ -18,8 +18,8 @@ pgmlink::DualDecompositionConservationTracking::DualDecompositionConservationTra
         bool with_appearance,
         bool with_disappearance,
         double transition_parameter,
-        bool with_constraints
-        )
+        bool with_constraints,
+        size_t timesteps_per_block)
     : pgmlink::ConservationTracking(
           max_number_objects,
           detection,
@@ -37,7 +37,8 @@ pgmlink::DualDecompositionConservationTracking::DualDecompositionConservationTra
           transition_parameter,
           with_constraints),
       hypotheses_graph_(NULL),
-      dd_optimizer_(NULL)
+      dd_optimizer_(NULL),
+      timesteps_per_block_(timesteps_per_block)
 {}
 
 pgmlink::DualDecompositionConservationTracking::~DualDecompositionConservationTracking()
@@ -76,13 +77,15 @@ void pgmlink::DualDecompositionConservationTracking::constraint_debug_output(
         if(i < subGM.numberOfVariables())
         {
             size_t num_factors_opengm = subGM.numberOfFactors(i);
-            std::cout << "\tVariable " << i << " has " << num_factors_opengm << " factors in OpenGM->Decomposition" << std::endl;
+            std::cout << "\tVariable " << i << " has " << num_factors_opengm
+                      << " factors in OpenGM->Decomposition" << std::endl;
         }
 
         if(i < pgm_->Model()->numberOfVariables())
         {
             size_t num_factors_pgm = pgm_->Model()->numberOfFactors(i);
-            std::cout << "\tVariable " << i << " has " << num_factors_pgm << " factors in PGM" << std::endl;
+            std::cout << "\tVariable " << i << " has " << num_factors_pgm
+                      << " factors in PGM" << std::endl;
         }
     }
 
@@ -90,7 +93,8 @@ void pgmlink::DualDecompositionConservationTracking::constraint_debug_output(
     {
         if(i < subGM.numberOfFactors())
         {
-            std::cout << "\tFactor " << i << " has " << subGM[i].numberOfVariables() << " variables in OpenGM->Decomposition\n\t\t";
+            std::cout << "\tFactor " << i << " has " << subGM[i].numberOfVariables()
+                      << " variables in OpenGM->Decomposition\n\t\t";
 
             for(size_t v = 0; v < subGM[i].numberOfVariables(); v++)
             {
@@ -101,7 +105,8 @@ void pgmlink::DualDecompositionConservationTracking::constraint_debug_output(
 
         if(i < pgm_->Model()->numberOfFactors())
         {
-            std::cout << "\tFactor " << i << " has " << (*(pgm_->Model()))[i].numberOfVariables() << " variables in PGM\n\t\t";
+            std::cout << "\tFactor " << i << " has " << (*(pgm_->Model()))[i].numberOfVariables()
+                      << " variables in PGM\n\t\t";
 
             for(size_t v = 0; v < (*(pgm_->Model()))[i].numberOfVariables(); v++)
             {
@@ -153,7 +158,9 @@ void pgmlink::DualDecompositionConservationTracking::debug_graph_output(Graphica
     }
 
     std::cout << "Factor Variable Count:" << std::endl;
-    for(std::map<size_t, size_t>::iterator it = factorOrders.begin(); it != factorOrders.end(); ++it)
+    for(std::map<size_t, size_t>::iterator it = factorOrders.begin();
+        it != factorOrders.end();
+        ++it)
     {
         std::cout << "\t[" << it->first << "] = " << it->second << std::endl;
     }
@@ -174,7 +181,9 @@ void pgmlink::DualDecompositionConservationTracking::debug_graph_output(Graphica
     }
 
     std::cout << "Variable Factor Count:" << std::endl;
-    for(std::map<size_t, size_t>::iterator it = variableOrders.begin(); it != variableOrders.end(); ++it)
+    for(std::map<size_t, size_t>::iterator it = variableOrders.begin();
+        it != variableOrders.end();
+        ++it)
     {
         std::cout << "\t[" << it->first << "] = " << it->second << std::endl;
     }
@@ -193,12 +202,10 @@ void pgmlink::DualDecompositionConservationTracking::decompose_graph(
     opengm::GraphicalModelDecomposer<GraphicalModelType>::DecompositionType decomposition(
                 model->numberOfVariables(),model->numberOfFactors(),0);
 
-    // TODO: make this a parameter
-    const size_t timesteps_per_block = 10;
-    const size_t num_time_steps = nodes_by_timestep_.size() + 1; // TODO: this doesnt go far enough!
-    size_t num_sub_models = num_time_steps / timesteps_per_block;
+    const size_t num_time_steps = nodes_by_timestep_.size(); // TODO: this sometimes doesnt go far enough!
+    size_t num_sub_models = num_time_steps / timesteps_per_block_;
 
-    if(num_time_steps % timesteps_per_block != 0)
+    if(num_time_steps % timesteps_per_block_ != 0)
     {
         num_sub_models++;
     }
@@ -211,8 +218,8 @@ void pgmlink::DualDecompositionConservationTracking::decompose_graph(
                                              std::numeric_limits<std::size_t>::max());
 
         // add all variables to their submodels
-        for(size_t timestep = sub_model_id * timesteps_per_block;
-            timestep < std::min((sub_model_id + 1) * timesteps_per_block, num_time_steps);
+        for(size_t timestep = sub_model_id * timesteps_per_block_;
+            timestep < std::min((sub_model_id + 1) * timesteps_per_block_, num_time_steps);
             ++timestep)
         {
             std::vector<size_t>& nodes_at_timestep = nodes_by_timestep_[timestep];
@@ -221,7 +228,12 @@ void pgmlink::DualDecompositionConservationTracking::decompose_graph(
                 node != nodes_at_timestep.end();
                 ++node)
             {
-                sub_variable_map[*node] = decomposition.addSubVariable(sub_model_id, *node);
+                // only add, if we do not have this node in that submodel yet
+                if(sub_variable_map[*node] == std::numeric_limits<std::size_t>::max())
+                {
+                    sub_variable_map[*node] = decomposition.addSubVariable(sub_model_id, *node);
+                    std::cout << "Adding node: " << *node << " to submodel: " << sub_model_id << std::endl;
+                }
             }
         }
 
@@ -235,10 +247,18 @@ void pgmlink::DualDecompositionConservationTracking::decompose_graph(
             }
             else
             {
+                if((*model)[factor_id].numberOfVariables() == 1)
+                {
+                    std::cout << "Found unary for variable: "
+                              << (*model)[factor_id].variableIndex(0) << std::endl;
+                }
+
                 std::vector<size_t> sub_variable_indices((*model)[factor_id].numberOfVariables());
                 bool all_variables_inside_submodel = true;
 
-                for(size_t i = 0; i < (*model)[factor_id].numberOfVariables(); ++i) {
+                for(size_t i = 0;
+                    i < (*model)[factor_id].numberOfVariables() && all_variables_inside_submodel;
+                    ++i) {
                     const size_t var_id = (*model)[factor_id].variableIndex(i);
                     sub_variable_indices[i] = sub_variable_map[var_id];
 
@@ -254,10 +274,9 @@ void pgmlink::DualDecompositionConservationTracking::decompose_graph(
             }
         }
     }
-    dd_parameter.decomposition_.reorder();
+    decomposition.reorder();
     std::cout << "done reordering, completing... " << std::endl;
-    dd_parameter.decomposition_.complete();
-
+    decomposition.complete();
 
     //dd_parameter.decomposition_ = decomposer.decomposeIntoClosedBlocks(*model, 2);
     dd_parameter.decomposition_ = decomposition;
@@ -268,7 +287,9 @@ void pgmlink::DualDecompositionConservationTracking::decompose_graph(
     {
         std::cout << "\tSubproblem " << i << ": "
                   << dd_parameter.decomposition_.numberOfSubFactors(i) << " factors and "
-                  << dd_parameter.decomposition_.numberOfSubVariables(i) << " variables" << std::endl;
+                  << dd_parameter.decomposition_.numberOfSubVariables(i) << " variables and "
+                  << dd_parameter.decomposition_.getEmptyFactorLists().size() << " empty factors"
+                  << std::endl;
     }
 
 
@@ -302,13 +323,15 @@ void pgmlink::DualDecompositionConservationTracking::infer()
 //    debug_graph_output(model);
 
     dd_parameter.decompositionId_ = DualDecompositionSubGradient::Parameter::MANUAL;
-    dd_parameter.maximalDualOrder_ = 2;
+    dd_parameter.maximalDualOrder_ = 1;
+    dd_parameter.minimalAbsAccuracy_ = 0.0001;
     dd_parameter.subPara_.verbose_ = true;
     dd_parameter.subPara_.integerConstraint_ = true;
     dd_parameter.subPara_.epGap_ = ep_gap_;
 
     dd_optimizer_ = new DualDecompositionSubGradient(*model, dd_parameter,
-                        boost::bind(&pgmlink::DualDecompositionConservationTracking::configure_hard_constraints, this, _1, _2, _3));
+                        boost::bind(&pgmlink::DualDecompositionConservationTracking::configure_hard_constraints,
+                                    this, _1, _2, _3));
 
     DualDecompositionSubGradient::VerboseVisitorType visitor;
     opengm::InferenceTermination status = dd_optimizer_->infer(visitor);
@@ -362,7 +385,8 @@ size_t pgmlink::DualDecompositionConservationTracking::cplex_id(size_t opengm_id
     if(new_id == (size_t)-1)
     {
         // return an "error" value
-        LOG(pgmlink::logDEBUG4) << "OpenGM ID " << opengm_id << " does not exist in subproblem " << current_sub_gm_id_;
+        LOG(pgmlink::logDEBUG4) << "OpenGM ID " << opengm_id
+                                << " does not exist in subproblem " << current_sub_gm_id_;
         return -1;
     }
 

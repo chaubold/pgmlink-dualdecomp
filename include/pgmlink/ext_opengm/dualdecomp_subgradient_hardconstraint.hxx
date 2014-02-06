@@ -114,13 +114,21 @@ DualDecompositionSubGradientWithHardConstraints<GM,INF,DUALBLOCK>::DualDecomposi
     :   DualDecompositionBase<GmType, DualBlockType >(gm),para_(para),
       hardConstraintConfigurator_(hcc)
 {
-    std::cout << "The parameter contains " << para_.decomposition_.numberOfSubModels()
-              << " submodels, and has address: " << &para_ << std::endl;
     this->init(para_);
     std::cout << "After initializing we have " << subGm_.size() << " submodels" << std::endl;
     subStates_.resize(subGm_.size());
     for(size_t i=0; i<subGm_.size(); ++i)
         subStates_[i].resize(subGm_[i].numberOfVariables());
+
+    for(typename std::vector<DualBlockType>::iterator it=dualBlocks_.begin();
+        it!=dualBlocks_.end();
+        ++it){
+//        for(size_t i=0; i<(*it).duals_.size(); ++i){
+//            DualVariableType& dv = (*it).duals_[i];
+//            std::cout << "\tFound dual variable: "
+//                      << dv.
+//        }
+    }
 }
 
 

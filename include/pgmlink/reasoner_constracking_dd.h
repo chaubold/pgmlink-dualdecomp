@@ -39,7 +39,8 @@ public:
             bool with_appearance = true,
             bool with_disappearance = true,
             double transition_parameter = 5,
-            bool with_constraints = true
+            bool with_constraints = true,
+            size_t timesteps_per_block = 10
             );
 
     ~DualDecompositionConservationTracking();
@@ -69,6 +70,7 @@ protected:
     const HypothesesGraph* hypotheses_graph_;
     size_t current_sub_gm_id_;
     DualDecompositionSubGradient::InfType* current_sub_optimizer_;
+    size_t timesteps_per_block_;
 };
 
 }
