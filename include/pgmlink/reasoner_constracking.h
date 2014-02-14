@@ -10,6 +10,7 @@
 #include "pgmlink/hypotheses.h"
 #include "pgmlink/reasoner.h"
 #include "pgmlink/feature.h"
+#include "pgmlink/hardconstraintchecker.h"
 
 namespace pgmlink {
 class Traxel;
@@ -146,6 +147,8 @@ protected:
 
     HypothesesGraph tracklet_graph_;
     std::map<HypothesesGraph::Node, std::vector<HypothesesGraph::Node> > tracklet2traxel_node_map_;
+
+    HardConstraintChecker hard_constraint_checker_;
 };
 
 

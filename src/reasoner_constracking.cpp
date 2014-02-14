@@ -659,10 +659,13 @@ void ConservationTracking::add_constraints( const HypothesesGraph&g , boost::fun
         //// outgoing transitions
         ////
         size_t num_outarcs = 0;
+        IdList transition_ids;
         // couple detection and transitions: Y_ij <= App_i
         for (HypothesesGraph::OutArcIt a(g, n); a != lemon::INVALID; ++a) {
             assert(app_node_map_.count(n) > 0
                    && "this node should be contained in app_node_map_ since it has outgoing arcs");
+            transition_ids.push_back(arc_map_[a]);
+
             for (size_t nu = 0; nu < max_number_objects_; ++nu) {
                 for (size_t mu = nu + 1; mu <= max_number_objects_; ++mu) {
                     cplex_idxs.clear();
@@ -683,6 +686,9 @@ void ConservationTracking::add_constraints( const HypothesesGraph&g , boost::fun
             }
             ++num_outarcs;
         }
+
+        // save for checking solutions later
+        hard_constraint_checker_.add_outgoing_constraint(transition_ids, app_node_map_[n], div_node_map_[n]);
 
         int div_cplex_id = -1;
         if (with_divisions_ && div_node_map_.count(n) > 0) {
@@ -796,6 +802,7 @@ void ConservationTracking::add_constraints( const HypothesesGraph&g , boost::fun
         // couple transitions: sum_k(Y_kj) = Dis_j
         cplex_idxs.clear();
         coeffs.clear();
+        transition_ids.clear();
 
         size_t num_inarcs = 0;
         for (HypothesesGraph::InArcIt a(g, n); a != lemon::INVALID; ++a) {
@@ -803,8 +810,11 @@ void ConservationTracking::add_constraints( const HypothesesGraph&g , boost::fun
                 cplex_idxs.push_back(cplex_id(arc_map_[a], nu));
                 coeffs.push_back(nu);
             }
+
+            transition_ids.push_back(arc_map_[a]);
             ++num_inarcs;
         }
+
 
         if (num_inarcs > 0) {
             assert(dis_node_map_.count(n) > 0
@@ -813,6 +823,9 @@ void ConservationTracking::add_constraints( const HypothesesGraph&g , boost::fun
                 cplex_idxs.push_back(cplex_id(dis_node_map_[n], nu));
                 coeffs.push_back(-nu);
             }
+
+            // save for checking solutions later
+            hard_constraint_checker_.add_incoming_constraint(transition_ids, app_node_map_[n]);
 
             // 0 <= sum_nu [ nu * sum_i (Y_ij[nu] ) ] - sum_nu ( nu * X_j[nu] ) - sum_nu ( nu * Dis_j[nu] ) <= 0
             constraint_name.str(std::string()); // clear the name
@@ -828,6 +841,8 @@ void ConservationTracking::add_constraints( const HypothesesGraph&g , boost::fun
         ////
         //// disappearance/appearance coupling
         ////
+        hard_constraint_checker_.add_appearance_disappearance_constraint(app_node_map_[n], dis_node_map_[n]);
+
         if (app_node_map_.count(n) > 0 && dis_node_map_.count(n) > 0) {
             for (size_t nu = 1; nu <= max_number_objects_; ++nu) {
                 cplex_idxs.clear();
