@@ -353,6 +353,89 @@ double get_transition_prob(double distance, size_t state, double alpha) {
 }
 }
 
+void ConservationTracking::add_soft_constraints(const HypothesesGraph& g)
+{
+    for (HypothesesGraph::NodeIt n(g); n != lemon::INVALID; ++n) {
+        LOG(logDEBUG) << "ConservationTracking::add_finite_factors: add soft-constraints for outgoing";
+
+        // collect and count outgoing arcs
+        std::vector<HypothesesGraph::Arc> arcs;
+        std::vector<size_t> vi;
+        std::vector<size_t> states_vars;
+        states_vars.push_back(max_number_objects_+1);
+        vi.push_back(app_node_map_[n]); // first detection node, remaining will be transition nodes
+        bool has_div_node = false;
+        if (with_divisions_ && div_node_map_.count(n) != 0) {
+            vi.push_back(div_node_map_[n]);
+            has_div_node = true;
+            states_vars.push_back(2);
+        }
+
+        int count = 0;
+        //int trans_idx = vi.size();
+        for(HypothesesGraph::OutArcIt a(g, n); a != lemon::INVALID; ++a) {
+            arcs.push_back(a);
+            vi.push_back(arc_map_[a]);
+            states_vars.push_back(max_number_objects_+1);
+            ++count;
+        }
+
+        // construct factor
+        // build value table
+        if (count != 0) {
+            //size_t table_dim = count + 1 + int(has_div_node); 		// n * transition var + detection var (+ division var)
+            std::vector<size_t> coords;
+            // ITER first_ogm_idx, ITER last_ogm_idx, VALUE init, size_t states_vars
+            pgm::OpengmExplicitFactor<double> table( vi.begin(), vi.end(), 0, states_vars);
+
+            //assert(table_dim - trans_idx == count);
+
+            ////
+            //// TODO: set the forbidden configurations to infinity or the allowed to zero
+            ////
+            if (has_div_node) {
+                // TODO
+            }
+
+            table.add_to(*(pgm_->Model()));
+        }
+
+
+
+        LOG(logDEBUG) << "ConservationTracking::add_finite_factors: add soft-constraints for incomfing";
+        // collect and count incoming arcs
+        arcs.clear();
+        vi.clear();
+        states_vars.clear();
+        states_vars.push_back(max_number_objects_+1);
+        vi.push_back(dis_node_map_[n]); // first detection node, remaining will be transition nodes
+
+        count = 0;
+        for(HypothesesGraph::InArcIt a(g, n); a != lemon::INVALID; ++a) {
+            arcs.push_back(a);
+            vi.push_back(arc_map_[a]);
+            states_vars.push_back(max_number_objects_+1);
+            ++count;
+        }
+        if (count != 0) {
+            // construct factor
+            // build value table
+            //size_t table_dim = count + 1; 		// n * transition var + detection var
+            std::vector<size_t> coords;
+            // ITER first_ogm_idx, ITER last_ogm_idx, VALUE init, size_t states_vars
+            pgm::OpengmExplicitFactor<double> table( vi.begin(), vi.end(), 0, states_vars);
+
+            //assert(table_dim - trans_idx == count);
+
+            ////
+            //// TODO: set the forbidden configurations to infinity or the allowed to zero
+            /////
+
+            table.add_to(*(pgm_->Model()));
+        }
+    }
+}
+
 void ConservationTracking::add_finite_factors(const HypothesesGraph& g) {
     LOG(logDEBUG) << "ConservationTracking::add_finite_factors: entered";
     property_map<node_traxel, HypothesesGraph::base_graph>::type& traxel_map = g.get(node_traxel());
@@ -518,85 +601,7 @@ void ConservationTracking::add_finite_factors(const HypothesesGraph& g) {
 
 
     if (!with_constraints_) {
-        for (HypothesesGraph::NodeIt n(g); n != lemon::INVALID; ++n) {
-            LOG(logDEBUG) << "ConservationTracking::add_finite_factors: add soft-constraints for outgoing";
-
-            // collect and count outgoing arcs
-            std::vector<HypothesesGraph::Arc> arcs;
-            std::vector<size_t> vi;
-            std::vector<size_t> states_vars;
-            states_vars.push_back(max_number_objects_+1);
-            vi.push_back(app_node_map_[n]); // first detection node, remaining will be transition nodes
-            bool has_div_node = false;
-            if (with_divisions_ && div_node_map_.count(n) != 0) {
-                vi.push_back(div_node_map_[n]);
-                has_div_node = true;
-                states_vars.push_back(2);
-            }
-
-            int count = 0;
-            //int trans_idx = vi.size();
-            for(HypothesesGraph::OutArcIt a(g, n); a != lemon::INVALID; ++a) {
-                arcs.push_back(a);
-                vi.push_back(arc_map_[a]);
-                states_vars.push_back(max_number_objects_+1);
-                ++count;
-            }
-
-            // construct factor
-            // build value table
-            if (count != 0) {
-                //size_t table_dim = count + 1 + int(has_div_node); 		// n * transition var + detection var (+ division var)
-                std::vector<size_t> coords;
-                // ITER first_ogm_idx, ITER last_ogm_idx, VALUE init, size_t states_vars
-                pgm::OpengmExplicitFactor<double> table( vi.begin(), vi.end(), 0, states_vars);
-
-                //assert(table_dim - trans_idx == count);
-
-                ////
-                //// TODO: set the forbidden configurations to infinity or the allowed to zero
-                ////
-                if (has_div_node) {
-                    // TODO
-                }
-
-                table.add_to(*(pgm_->Model()));
-            }
-
-
-
-            LOG(logDEBUG) << "ConservationTracking::add_finite_factors: add soft-constraints for incomfing";
-            // collect and count incoming arcs
-            arcs.clear();
-            vi.clear();
-            states_vars.clear();
-            states_vars.push_back(max_number_objects_+1);
-            vi.push_back(dis_node_map_[n]); // first detection node, remaining will be transition nodes
-
-            count = 0;
-            for(HypothesesGraph::InArcIt a(g, n); a != lemon::INVALID; ++a) {
-                arcs.push_back(a);
-                vi.push_back(arc_map_[a]);
-                states_vars.push_back(max_number_objects_+1);
-                ++count;
-            }
-            if (count != 0) {
-                // construct factor
-                // build value table
-                //size_t table_dim = count + 1; 		// n * transition var + detection var
-                std::vector<size_t> coords;
-                // ITER first_ogm_idx, ITER last_ogm_idx, VALUE init, size_t states_vars
-                pgm::OpengmExplicitFactor<double> table( vi.begin(), vi.end(), 0, states_vars);
-
-                //assert(table_dim - trans_idx == count);
-
-                ////
-                //// TODO: set the forbidden configurations to infinity or the allowed to zero
-                /////
-
-                table.add_to(*(pgm_->Model()));
-            }
-        }
+        add_soft_constraints(g);
 
     }
 }

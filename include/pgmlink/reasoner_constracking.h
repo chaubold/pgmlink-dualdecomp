@@ -98,6 +98,8 @@ protected:
                                                                        std::vector<std::size_t>::iterator,
                                                                        std::vector<int>::iterator,
                                                                        int, int, const char *)> );
+    void add_soft_constraints(const HypothesesGraph& g);
+
     void add_detection_nodes( const HypothesesGraph& );
     void add_appearance_nodes( const HypothesesGraph& );
     void add_disappearance_nodes( const HypothesesGraph& );
