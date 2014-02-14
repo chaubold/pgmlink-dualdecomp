@@ -72,7 +72,12 @@ BOOST_AUTO_TEST_CASE( Tracking_ConservationTrackingDD_Merger ) {
     std::cout << std::endl;
 
     FieldOfView fov(0, 0, 0, 0, 4, 5, 5, 5); // tlow, xlow, ylow, zlow, tup, xup, yup, zup
+#define DUAL_DECOMP 0
+#if DUAL_DECOMP
     ConsTrackingDD tracking = ConsTrackingDD(
+#else
+    ConsTracking tracking = ConsTracking(
+#endif
                   2, // max_number_objects
                   20, // max_neighbor_distance
                   0.3, // division_threshold
@@ -92,9 +97,13 @@ BOOST_AUTO_TEST_CASE( Tracking_ConservationTrackingDD_Merger ) {
                   5, //transition_parameter
                   0, //border_width for app/disapp costs
                   fov,
+#if DUAL_DECOMP
                   true,
                   1 // timesteps per dual block
                   );
+#else
+                  true);
+#endif
 
 
     std::cout << "Run Conservation tracking" << std::endl;

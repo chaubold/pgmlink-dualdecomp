@@ -58,10 +58,26 @@ void pgmlink::DualDecompositionConservationTracking::add_constraint(
     {
         if(*it == (size_t)-1)
         {
-            LOG(pgmlink::logDEBUG4) << "Discarding constraint: " << name;
+            //LOG(pgmlink::logDEBUG4) << "Discarding constraint: " << name;
+            std::cout << "------ discarding constraint between cplex nodes: ";
+            for(std::vector<std::size_t>::iterator i = ids_begin; i != ids_end; ++i)
+            {
+                std::cout << *i << " ";
+            }
+            std::cout << std::endl;
+            std::cout << "------ " << name << std::endl;
+
             return;
         }
     }
+
+    std::cout << "++++++ adding constraint between cplex nodes: ";
+    for(std::vector<std::size_t>::iterator it = ids_begin; it != ids_end; ++it)
+    {
+        std::cout << *it << " ";
+    }
+    std::cout << std::endl;
+    std::cout << "++++++ " << name << std::endl;
 
     optimizer->addConstraint(ids_begin, ids_end, coeffs_begin, lower, higher, name);
 }
@@ -247,7 +263,7 @@ void pgmlink::DualDecompositionConservationTracking::decompose_graph(
             }
             else
             {
-                if((*model)[factor_id].numberOfVariables() == 1)
+                if((*model)[factor_id].numberOfVariables() == 1 && sub_model_id == 0)
                 {
                     std::cout << "Found unary for variable: "
                               << (*model)[factor_id].variableIndex(0) << std::endl;
@@ -256,11 +272,15 @@ void pgmlink::DualDecompositionConservationTracking::decompose_graph(
                 std::vector<size_t> sub_variable_indices((*model)[factor_id].numberOfVariables());
                 bool all_variables_inside_submodel = true;
 
+                std::stringstream factor_output;
+                factor_output << "Adding factor: " << factor_id << " to submodel " << sub_model_id << " with factors: ";
+
                 for(size_t i = 0;
                     i < (*model)[factor_id].numberOfVariables() && all_variables_inside_submodel;
                     ++i) {
                     const size_t var_id = (*model)[factor_id].variableIndex(i);
                     sub_variable_indices[i] = sub_variable_map[var_id];
+                    factor_output << var_id << " ";
 
                     bool found = (sub_variable_map[var_id] != std::numeric_limits<std::size_t>::max());
 
@@ -270,7 +290,12 @@ void pgmlink::DualDecompositionConservationTracking::decompose_graph(
                 if(all_variables_inside_submodel)
                 {
                     decomposition.addSubFactor(sub_model_id, factor_id, sub_variable_indices);
+                    std::cout << factor_output.str() << std::endl;
                 }
+//                else
+//                {
+//                    std::cout << "Discarding factor " << factor_id << " as not all variables are present in subproblem!" << std::endl;
+//                }
             }
         }
     }
@@ -385,10 +410,15 @@ size_t pgmlink::DualDecompositionConservationTracking::cplex_id(size_t opengm_id
     if(new_id == (size_t)-1)
     {
         // return an "error" value
-        LOG(pgmlink::logDEBUG4) << "OpenGM ID " << opengm_id
-                                << " does not exist in subproblem " << current_sub_gm_id_;
+//        LOG(pgmlink::logDEBUG4) << "OpenGM ID " << opengm_id
+//                                << " does not exist in subproblem " << current_sub_gm_id_;
+        std::cout << "!!! OpenGM ID " << opengm_id
+                                << " does not exist in subproblem " << current_sub_gm_id_ << std::endl;
         return -1;
     }
+
+    std::cout << "??? found required pgm var: " << opengm_id << " value: " << state
+              << " in cplex: " << current_sub_optimizer_->lpNodeVi(new_id, state) << std::endl;
 
     // add constraint if the indices are present in the current subproblem
     return current_sub_optimizer_->lpNodeVi(new_id, state);

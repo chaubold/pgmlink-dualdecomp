@@ -183,6 +183,7 @@ infer(VISITOR& visitor)
         primalTime_=0;
         primalTimer_.tic();
         //omp_set_num_threads(para_.numberOfThreads_);
+        const std::vector<SubVariableListType>& subVariableLists = para_.decomposition_.getVariableLists();
 
         //#pragma omp parallel for
         for(size_t subModelId=0; subModelId<subGm_.size(); ++subModelId){
@@ -190,6 +191,23 @@ infer(VISITOR& visitor)
             hardConstraintConfigurator_(subGm_[subModelId], subModelId, inf);
             inf.infer();
             inf.arg(subStates_[subModelId]);
+
+            std::cout << "Submodel " << subModelId << " - Found solution:\n";
+
+            for(size_t varId=0; varId<gm_.numberOfVariables(); ++varId){
+                for(typename SubVariableListType::const_iterator its = subVariableLists[varId].begin();
+                    its!=subVariableLists[varId].end();++its){
+                    if(subModelId != (*its).subModelId_)
+                    {
+                        continue;
+                    }
+
+                    const size_t& subVariableId = (*its).subVariableId_;
+                    std::cout << "(" << varId << ")=" << subStates_[subModelId][subVariableId] << " ";
+                }
+            }
+
+            std::cout << std::endl;
         }
         primalTimer_.toc();
 
@@ -197,7 +215,6 @@ infer(VISITOR& visitor)
         // Calculate lower-bound
         std::vector<LabelType> temp;
         std::vector<LabelType> temp2;
-        const std::vector<SubVariableListType>& subVariableLists = para_.decomposition_.getVariableLists();
         (*this).template getBounds<AccumulationType>(subStates_, subVariableLists, lowerBound_, upperBound_, temp);
         acNegLowerBound_(-lowerBound_,temp2);
         acUpperBound_(upperBound_, temp);
@@ -254,8 +271,9 @@ infer(VISITOR& visitor)
         {
             std::cout << *it << " ";
         }
+        std::cout << "\nBounds: [" << lowerBound_ << ", " << upperBound_ << "]" << std::endl;
 
-        std::cout << "\n************************************" << std::endl;
+        std::cout << "************************************" << std::endl;
 
         // Test for Convergence
         ValueType o;
