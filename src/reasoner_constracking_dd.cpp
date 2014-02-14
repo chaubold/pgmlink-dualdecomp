@@ -356,7 +356,8 @@ void pgmlink::DualDecompositionConservationTracking::infer()
 
     dd_optimizer_ = new DualDecompositionSubGradient(*model, dd_parameter,
                         boost::bind(&pgmlink::DualDecompositionConservationTracking::configure_hard_constraints,
-                                    this, _1, _2, _3));
+                                    this, _1, _2, _3),
+                                                     &hard_constraint_checker_);
 
     DualDecompositionSubGradient::VerboseVisitorType visitor;
     opengm::InferenceTermination status = dd_optimizer_->infer(visitor);

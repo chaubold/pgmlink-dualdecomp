@@ -72,7 +72,7 @@ BOOST_AUTO_TEST_CASE( Tracking_ConservationTrackingDD_Merger ) {
     std::cout << std::endl;
 
     FieldOfView fov(0, 0, 0, 0, 4, 5, 5, 5); // tlow, xlow, ylow, zlow, tup, xup, yup, zup
-#define DUAL_DECOMP 0
+#define DUAL_DECOMP 1
 #if DUAL_DECOMP
     ConsTrackingDD tracking = ConsTrackingDD(
 #else

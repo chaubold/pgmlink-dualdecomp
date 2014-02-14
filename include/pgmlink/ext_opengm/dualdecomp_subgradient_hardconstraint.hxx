@@ -13,6 +13,7 @@
 #include <opengm/inference/dualdecomposition/dualdecomposition_subgradient.hxx>
 
 #include <boost/function.hpp>
+#include "../hardconstraintchecker.h"
 #include "../log.h"
 
 namespace opengm {
@@ -59,9 +60,10 @@ public:
     using  DualDecompositionBase<GmType, DualBlockType >::dualBlocks_;
     using  DualDecompositionBase<GmType, DualBlockType >::numDualsOvercomplete_;
     using  DualDecompositionBase<GmType, DualBlockType >::numDualsMinimal_;
+    using  DualDecompositionBase<GmType, DualBlockType >::modelWithSameVariables_;
 
-    DualDecompositionSubGradientWithHardConstraints(const GmType&, const HardConstraintConfigurator& hcc);
-    DualDecompositionSubGradientWithHardConstraints(const GmType&, const Parameter&, const HardConstraintConfigurator& hcc);
+    DualDecompositionSubGradientWithHardConstraints(const GmType&, const HardConstraintConfigurator& hcc, pgmlink::HardConstraintChecker* hard_constraint_checker);
+    DualDecompositionSubGradientWithHardConstraints(const GmType&, const Parameter&, const HardConstraintConfigurator& hcc, pgmlink::HardConstraintChecker* hard_constraint_checker);
     virtual std::string name() const {return "DualDecompositionSubGradientWithHardConstraints";};
     virtual const GmType& graphicalModel() const {return gm_;};
     virtual InferenceTermination infer();
@@ -78,6 +80,11 @@ private:
     void getPartialSubGradient(const size_t, const std::vector<T_IndexType>&, std::vector<T_LabelType>&)const;
     double euclideanProjectedSubGradientNorm();
 
+protected:
+    // overrride parent method
+    template<class ACC> void getBounds(const std::vector<std::vector<LabelType> >&, const std::vector<SubVariableListType>&, ValueType&, ValueType&, std::vector<LabelType>&);
+
+private:
     // Members
     std::vector<std::vector<LabelType> >  subStates_;
 
@@ -95,13 +102,15 @@ private:
     double primalTime_;
     double dualTime_;
     HardConstraintConfigurator hardConstraintConfigurator_;
+    pgmlink::HardConstraintChecker* hard_constraint_checker_;
 };
 
 //**********************************************************************************
 template<class GM, class INF, class DUALBLOCK>
-DualDecompositionSubGradientWithHardConstraints<GM,INF,DUALBLOCK>::DualDecompositionSubGradientWithHardConstraints(const GmType& gm, const HardConstraintConfigurator& hcc)
+DualDecompositionSubGradientWithHardConstraints<GM,INF,DUALBLOCK>::DualDecompositionSubGradientWithHardConstraints(const GmType& gm, const HardConstraintConfigurator& hcc, pgmlink::HardConstraintChecker* hard_constraint_checker)
     : DualDecompositionBase<GmType, DualBlockType >(gm),
-      hardConstraintConfigurator_(hcc)
+      hardConstraintConfigurator_(hcc),
+      hard_constraint_checker_(hard_constraint_checker)
 {
     this->init(para_);
     subStates_.resize(subGm_.size());
@@ -110,9 +119,10 @@ DualDecompositionSubGradientWithHardConstraints<GM,INF,DUALBLOCK>::DualDecomposi
 }
 
 template<class GM, class INF, class DUALBLOCK>
-DualDecompositionSubGradientWithHardConstraints<GM,INF,DUALBLOCK>::DualDecompositionSubGradientWithHardConstraints(const GmType& gm, const Parameter& para, const HardConstraintConfigurator& hcc)
+DualDecompositionSubGradientWithHardConstraints<GM,INF,DUALBLOCK>::DualDecompositionSubGradientWithHardConstraints(const GmType& gm, const Parameter& para, const HardConstraintConfigurator& hcc, pgmlink::HardConstraintChecker *hard_constraint_checker)
     :   DualDecompositionBase<GmType, DualBlockType >(gm),para_(para),
-      hardConstraintConfigurator_(hcc)
+      hardConstraintConfigurator_(hcc),
+      hard_constraint_checker_(hard_constraint_checker)
 {
     this->init(para_);
     std::cout << "After initializing we have " << subGm_.size() << " submodels" << std::endl;
@@ -368,6 +378,112 @@ double DualDecompositionSubGradientWithHardConstraints<GM,INF,DUALBLOCK>::euclid
         }
     }
     return sqrt(norm);
+}
+
+template<class GM, class INF, class DUALBLOCK>
+template <class ACC>
+void DualDecompositionSubGradientWithHardConstraints<GM,INF,DUALBLOCK>::getBounds
+(
+   const std::vector<std::vector<LabelType> >& subStates,
+   const std::vector<SubVariableListType>& subVariableLists,
+   ValueType& lowerBound,
+   ValueType& upperBound,
+   std::vector<LabelType> & upperState
+   )
+{
+   // Calculate lower-bound
+   lowerBound=0;
+   for(size_t subModelId=0; subModelId<subGm_.size(); ++subModelId){
+       ValueType subModelEnergy = subGm_[subModelId].evaluate(subStates[subModelId]);
+       std::cout << "SubModel " << subModelId << " has energy: " << subModelEnergy << std::endl;
+      lowerBound += subModelEnergy;
+   }
+
+   // Calculate upper-bound
+   Accumulation<ValueType,LabelType,ACC> ac;
+
+   // Set modelWithSameVariables_
+   if(modelWithSameVariables_[0] == Tribool::Maybe){
+      for(size_t varId=0; varId<gm_.numberOfVariables(); ++varId){
+         for(typename SubVariableListType::const_iterator its = subVariableLists[varId].begin();
+             its!=subVariableLists[varId].end();++its){
+            const size_t& subModelId    = (*its).subModelId_;
+            const size_t& subVariableId = (*its).subVariableId_;
+            if(subVariableId != varId){
+               modelWithSameVariables_[subModelId] = Tribool::False;
+            }
+         }
+      }
+      for(size_t subModelId=0; subModelId<subGm_.size(); ++subModelId){
+         if(gm_.numberOfVariables() != subGm_[subModelId].numberOfVariables()){
+            modelWithSameVariables_[subModelId] = Tribool::False;
+         }
+         if(modelWithSameVariables_[subModelId] == Tribool::Maybe){
+            modelWithSameVariables_[subModelId] = Tribool::True;
+         }
+      }
+   }
+
+   // Build Primal-Candidates
+   std::vector<std::vector<LabelType> > args(subGm_.size());
+   bool somethingToFill = false;
+   for(size_t subModelId=0; subModelId<subGm_.size(); ++subModelId){
+      if(modelWithSameVariables_[subModelId] == Tribool::False){
+         args[subModelId].assign(gm_.numberOfVariables(),std::numeric_limits<LabelType>::max());
+         somethingToFill = true;
+      }
+      else{
+          std::cout << "Accumulating primal candidates - evaluating GM with submodel " << subModelId << " solution:" << std::endl;
+          for(size_t i = 0; i < subStates[subModelId].size(); ++i)
+          {
+              std::cout << subStates[subModelId][i] << " ";
+          }
+          std::cout << std::endl;
+         ac(gm_.evaluate(subStates[subModelId]),subStates[subModelId]);
+      }
+   }
+
+   if(somethingToFill){
+      for(size_t varId=0; varId<gm_.numberOfVariables(); ++varId){
+         for(typename SubVariableListType::const_iterator its = subVariableLists[varId].begin();
+             its!=subVariableLists[varId].end();++its){
+            const size_t& subModelId    = (*its).subModelId_;
+            const size_t& subVariableId = (*its).subVariableId_;
+            if(modelWithSameVariables_[subModelId] == Tribool::False){
+               args[subModelId][varId] = subStates[subModelId][subVariableId];
+            }
+         }
+         for(size_t subModelId=0; subModelId<subGm_.size(); ++subModelId){
+            if(modelWithSameVariables_[subModelId] == Tribool::False &&
+               args[subModelId][varId] == std::numeric_limits<LabelType>::max())
+            {
+               const size_t& aSubModelId    = subVariableLists[varId].front().subModelId_;
+               const size_t& aSubVariableId = subVariableLists[varId].front().subVariableId_;
+               args[subModelId][varId] = subStates[aSubModelId][aSubVariableId];
+            }
+         }
+      }
+      for(size_t subModelId=0; subModelId<subGm_.size(); ++subModelId){
+         if(modelWithSameVariables_[subModelId] == Tribool::False){
+             ValueType value = gm_.evaluate(args[subModelId]);
+             if(!hard_constraint_checker_->check_configuration(args[subModelId]))
+             {
+                 value = std::numeric_limits<ValueType>::max();
+             }
+
+             std::cout << "Accumulating energy - evaluating GM with submodel " << subModelId << " solution: " << value << std::endl;
+             for(size_t i = 0; i < args[subModelId].size(); ++i)
+             {
+                 std::cout << args[subModelId][i] << " ";
+             }
+             std::cout << std::endl;
+            ac(value,args[subModelId]);
+         }
+      }
+   }
+
+   upperBound = ac.value();
+   ac.state(upperState);
 }
 
 
