@@ -262,7 +262,7 @@ void ConservationTracking::add_appearance_nodes(const HypothesesGraph& g) {
         size_t timestep = timestep_map[n];
         nodes_by_timestep_[timestep].push_back(pgm_->Model()->numberOfVariables() - 1);
 
-        std::cout << "Node " << pgm_->Model()->numberOfVariables() - 1 << " is APPEARANCE at timestep " << timestep << std::endl;
+        LOG(pgmlink::logDEBUG3) << "Node " << pgm_->Model()->numberOfVariables() - 1 << " is APPEARANCE at timestep " << timestep;
 
         assert(pgm_->Model()->numberOfLabels(app_node_map_[n]) == max_number_objects_ + 1);
         ++count;
@@ -287,7 +287,7 @@ void ConservationTracking::add_disappearance_nodes(const HypothesesGraph& g) {
             nodes_by_timestep_[timestep - 1].push_back(pgm_->Model()->numberOfVariables() - 1);
         }
 
-        std::cout << "Node " << pgm_->Model()->numberOfVariables() - 1 << " is DISAPPEARANCE at timestep " << timestep << std::endl;
+        LOG(pgmlink::logDEBUG3) << "Node " << pgm_->Model()->numberOfVariables() - 1 << " is DISAPPEARANCE at timestep " << timestep;
 
         assert(pgm_->Model()->numberOfLabels(dis_node_map_[n]) == max_number_objects_ + 1);
         ++count;
@@ -310,7 +310,7 @@ void ConservationTracking::add_transition_nodes(const HypothesesGraph& g) {
         size_t timestep = timestep_map[n];
         nodes_by_timestep_[timestep].push_back(pgm_->Model()->numberOfVariables() - 1);
 
-        std::cout << "Node " << pgm_->Model()->numberOfVariables() - 1 << " is TRANSITION at timestep " << timestep << std::endl;
+        LOG(pgmlink::logDEBUG3) << "Node " << pgm_->Model()->numberOfVariables() - 1 << " is TRANSITION at timestep " << timestep;
 
         assert(pgm_->Model()->numberOfLabels(arc_map_[a]) == max_number_objects_ + 1);
         ++count;
@@ -334,7 +334,7 @@ void ConservationTracking::add_division_nodes(const HypothesesGraph& g) {
             HypothesesGraph::node_timestep_map& timestep_map = g.get(node_timestep());
             size_t timestep = timestep_map[n];
             nodes_by_timestep_[timestep].push_back(pgm_->Model()->numberOfVariables() - 1);
-            std::cout << "Node " << pgm_->Model()->numberOfVariables() - 1 << " is DIVISION at timestep " << timestep << std::endl;
+            LOG(pgmlink::logDEBUG3) << "Node " << pgm_->Model()->numberOfVariables() - 1 << " is DIVISION at timestep " << timestep;
 
             assert(pgm_->Model()->numberOfLabels(div_node_map_[n]) == 2);
             ++count;

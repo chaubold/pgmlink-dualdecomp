@@ -125,20 +125,9 @@ DualDecompositionSubGradientWithHardConstraints<GM,INF,DUALBLOCK>::DualDecomposi
       hard_constraint_checker_(hard_constraint_checker)
 {
     this->init(para_);
-    std::cout << "After initializing we have " << subGm_.size() << " submodels" << std::endl;
     subStates_.resize(subGm_.size());
     for(size_t i=0; i<subGm_.size(); ++i)
         subStates_[i].resize(subGm_[i].numberOfVariables());
-
-    for(typename std::vector<DualBlockType>::iterator it=dualBlocks_.begin();
-        it!=dualBlocks_.end();
-        ++it){
-//        for(size_t i=0; i<(*it).duals_.size(); ++i){
-//            DualVariableType& dv = (*it).duals_[i];
-//            std::cout << "\tFound dual variable: "
-//                      << dv.
-//        }
-    }
 }
 
 
@@ -186,9 +175,9 @@ infer(VISITOR& visitor)
     //visitor.startInference();
     visitor.begin(*this,this->value(),this->bound());
 
-    LOG(pgmlink::logWARNING) << "Number of Subproblems: " << subGm_.size();
+    LOG(pgmlink::logINFO) << "Number of Subproblems: " << subGm_.size();
     for(size_t iteration=0; iteration<para_.maximalNumberOfIterations_; ++iteration){
-        LOG(pgmlink::logWARNING) << "Iteration: " << iteration;
+        LOG(pgmlink::logDEBUG) << "Iteration: " << iteration;
         // Solve Subproblems
         primalTime_=0;
         primalTimer_.tic();
@@ -202,7 +191,8 @@ infer(VISITOR& visitor)
             inf.infer();
             inf.arg(subStates_[subModelId]);
 
-            std::cout << "Submodel " << subModelId << " - Found solution:\n";
+            std::stringstream s;
+            s << "Submodel " << subModelId << " - Found solution:\n";
 
             for(size_t varId=0; varId<gm_.numberOfVariables(); ++varId){
                 for(typename SubVariableListType::const_iterator its = subVariableLists[varId].begin();
@@ -213,11 +203,11 @@ infer(VISITOR& visitor)
                     }
 
                     const size_t& subVariableId = (*its).subVariableId_;
-                    std::cout << "(" << varId << ")=" << subStates_[subModelId][subVariableId] << " ";
+                    s << "(" << varId << ")=" << subStates_[subModelId][subVariableId] << " ";
                 }
             }
 
-            std::cout << std::endl;
+            LOG(pgmlink::logDEBUG2) << s.str();
         }
         primalTimer_.toc();
 
@@ -274,16 +264,18 @@ infer(VISITOR& visitor)
         visitor((*this), upperBound_, lowerBound_);
         //visitor((*this), lowerBound_, -acNegLowerBound_.value(), upperBound_, acUpperBound_.value(), primalTime_, dualTime_);
 
-        std::cout << "************************************\n"
-                     "Current gap: " << fabs(acUpperBound_.value() + acNegLowerBound_.value()) << "\nSubgradient (" << s.size() << "): ";
+        LOG(pgmlink::logINFO) << "************************************\n";
+        LOG(pgmlink::logINFO) << "Current gap: " << fabs(acUpperBound_.value() + acNegLowerBound_.value()) << "\nSubgradient (" << s.size() << "): ";
 
+        std::stringstream str;
         for(std::vector<size_t>::iterator it = s.begin(); it != s.end(); ++it)
         {
-            std::cout << *it << " ";
+            str << *it << " ";
         }
-        std::cout << "\nBounds: [" << lowerBound_ << ", " << upperBound_ << "]" << std::endl;
+        str << "\nBounds: [" << lowerBound_ << ", " << upperBound_ << "]" << std::endl;
+        LOG(pgmlink::logINFO) << str.str();
 
-        std::cout << "************************************" << std::endl;
+        LOG(pgmlink::logINFO) << "************************************" << std::endl;
 
         // Test for Convergence
         ValueType o;
@@ -395,7 +387,7 @@ void DualDecompositionSubGradientWithHardConstraints<GM,INF,DUALBLOCK>::getBound
    lowerBound=0;
    for(size_t subModelId=0; subModelId<subGm_.size(); ++subModelId){
        ValueType subModelEnergy = subGm_[subModelId].evaluate(subStates[subModelId]);
-       std::cout << "SubModel " << subModelId << " has energy: " << subModelEnergy << std::endl;
+       LOG(pgmlink::logDEBUG1) << "SubModel " << subModelId << " has energy: " << subModelEnergy;
       lowerBound += subModelEnergy;
    }
 
@@ -433,12 +425,13 @@ void DualDecompositionSubGradientWithHardConstraints<GM,INF,DUALBLOCK>::getBound
          somethingToFill = true;
       }
       else{
-          std::cout << "Accumulating primal candidates - evaluating GM with submodel " << subModelId << " solution:" << std::endl;
+          std::stringstream s;
+          s << "Accumulating primal candidates - evaluating GM with submodel " << subModelId << " solution:" << std::endl;
           for(size_t i = 0; i < subStates[subModelId].size(); ++i)
           {
-              std::cout << subStates[subModelId][i] << " ";
+              s << subStates[subModelId][i] << " ";
           }
-          std::cout << std::endl;
+          LOG(pgmlink::logDEBUG2) << s.str();
          ac(gm_.evaluate(subStates[subModelId]),subStates[subModelId]);
       }
    }
@@ -471,12 +464,13 @@ void DualDecompositionSubGradientWithHardConstraints<GM,INF,DUALBLOCK>::getBound
                  value = std::numeric_limits<ValueType>::max();
              }
 
-             std::cout << "Accumulating energy - evaluating GM with submodel " << subModelId << " solution: " << value << std::endl;
+             std::stringstream s;
+             s << "Accumulating energy - evaluating GM with submodel " << subModelId << " solution: " << value << std::endl;
              for(size_t i = 0; i < args[subModelId].size(); ++i)
              {
-                 std::cout << args[subModelId][i] << " ";
+                 s << args[subModelId][i] << " ";
              }
-             std::cout << std::endl;
+             LOG(pgmlink::logDEBUG2) << s.str();
             ac(value,args[subModelId]);
          }
       }
