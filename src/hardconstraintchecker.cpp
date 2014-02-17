@@ -38,7 +38,7 @@ bool HardConstraintChecker::check_incoming_constraints(const Configuration &conf
         {
             LOG(logWARNING) << "Num detections not equal to num incoming at nodes(values): "
                             << detection << "(" << num_detections << ") != "
-                            << num_incoming;
+                            << num_incoming << "(in " << transition_nodes.size() << " nodes)";
             return false;
         }
     }
@@ -67,7 +67,12 @@ bool HardConstraintChecker::check_outgoing_constraints(const Configuration &conf
 
         size_t num_outgoing = 0;
         size_t num_detections = config[detection];
-        size_t num_divisions = config[division];
+        size_t num_divisions = 0;
+
+        if(division != -1)
+        {
+            num_divisions = config[division];
+        }
 
         // we cannot have more divisions than detections
         if(num_divisions > num_detections)

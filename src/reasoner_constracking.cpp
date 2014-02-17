@@ -716,6 +716,12 @@ void ConservationTracking::add_constraints( const HypothesesGraph&g , boost::fun
                 cplex_idxs.push_back(div_cplex_id);
                 coeffs.push_back(-1);
             }
+            else
+            {
+                // save for checking solutions later, but without divisions
+                hard_constraint_checker_.add_outgoing_constraint(transition_ids, app_node_map_[n], -1);
+            }
+
             for (size_t nu = 1; nu <= max_number_objects_; ++nu) {
                 coeffs.push_back(-nu);
                 cplex_idxs.push_back(cplex_id(app_node_map_[n], nu));
