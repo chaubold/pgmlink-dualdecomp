@@ -175,6 +175,9 @@ infer(VISITOR& visitor)
     //visitor.startInference();
     visitor.begin(*this,this->value(),this->bound());
 
+    opengm::Timer overallTimer;
+    overallTimer.tic();
+
     LOG(pgmlink::logINFO) << "Number of Subproblems: " << subGm_.size();
     for(size_t iteration=0; iteration<para_.maximalNumberOfIterations_; ++iteration){
         LOG(pgmlink::logDEBUG) << "Iteration: " << iteration;
@@ -188,6 +191,7 @@ infer(VISITOR& visitor)
         for(size_t subModelId=0; subModelId<subGm_.size(); ++subModelId){
             InfType inf(subGm_[subModelId],para_.subPara_);
             hardConstraintConfigurator_(subGm_[subModelId], subModelId, inf);
+            inf.setStartingPoint(subStates_[subModelId].begin());
             inf.infer();
             inf.arg(subStates_[subModelId]);
 
@@ -285,14 +289,13 @@ infer(VISITOR& visitor)
 
         if(   fabs(acUpperBound_.value() + acNegLowerBound_.value())                       <= para_.minimalAbsAccuracy_
               || fabs((acUpperBound_.value()+ acNegLowerBound_.value())/acUpperBound_.value()) <= para_.minimalRelAccuracy_){
-            //std::cout << "bound reached ..." <<std::endl;
             visitor.end((*this), acUpperBound_.value(), -acNegLowerBound_.value());
+            LOG(pgmlink::logINFO) << "Inference took: " << overallTimer.elapsedTime();
             return NORMAL;
         }
     }
-    //std::cout << "maximal number of dual steps ..." <<std::endl;
     visitor.end((*this), acUpperBound_.value(), -acNegLowerBound_.value());
-
+    LOG(pgmlink::logINFO) << "Inference took: " << overallTimer.elapsedTime();
     return NORMAL;
 }
 
