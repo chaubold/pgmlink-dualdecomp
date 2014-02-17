@@ -826,6 +826,8 @@ void ConservationTracking::add_constraints( const HypothesesGraph&g , boost::fun
             ++num_inarcs;
         }
 
+        // save for checking solutions later
+        hard_constraint_checker_.add_incoming_constraint(transition_ids, dis_node_map_[n]);
 
         if (num_inarcs > 0) {
             assert(dis_node_map_.count(n) > 0
@@ -835,8 +837,6 @@ void ConservationTracking::add_constraints( const HypothesesGraph&g , boost::fun
                 coeffs.push_back(-nu);
             }
 
-            // save for checking solutions later
-            hard_constraint_checker_.add_incoming_constraint(transition_ids, app_node_map_[n]);
 
             // 0 <= sum_nu [ nu * sum_i (Y_ij[nu] ) ] - sum_nu ( nu * X_j[nu] ) - sum_nu ( nu * Dis_j[nu] ) <= 0
             constraint_name.str(std::string()); // clear the name
