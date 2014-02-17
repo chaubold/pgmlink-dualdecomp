@@ -25,6 +25,12 @@ bool HardConstraintChecker::check_incoming_constraints(const Configuration &conf
         size_t num_incoming = 0;
         size_t num_detections = config[detection];
 
+        if(transition_nodes.size() == 0)
+        {
+            // if no incoming transitions, we don't care
+            continue;
+        }
+
         // count the number of incoming transitions = sum_j (Y_ij)
         for(IdList::iterator transition_node = transition_nodes.begin();
             transition_node != transition_nodes.end();
