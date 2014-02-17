@@ -42,6 +42,8 @@ bool HardConstraintChecker::check_incoming_constraints(const Configuration &conf
             return false;
         }
     }
+
+    return true;
 }
 
 void HardConstraintChecker::add_outgoing_constraint(const IdList &transition_nodes,
@@ -90,10 +92,12 @@ bool HardConstraintChecker::check_outgoing_constraints(const Configuration &conf
             LOG(logWARNING) << "Outgoing Transition (A + D = sum Y) constraint violated by nodes(value): "
                             << detection << "(" << num_detections << ") + "
                             << division << "(" << num_divisions << ") != "
-                            << num_outgoing;
+                            << num_outgoing << "(in " << transition_nodes.size() << " nodes)";
             return false;
         }
     }
+
+    return true;
 }
 
 void HardConstraintChecker::add_appearance_disappearance_constraint(size_t appearance_node, size_t disappearance_node)
@@ -123,6 +127,8 @@ bool HardConstraintChecker::check_appearance_disappearance_constraints(const Con
             return false;
         }
     }
+
+    return true;
 }
 
 bool HardConstraintChecker::check_configuration(const Configuration &config)
