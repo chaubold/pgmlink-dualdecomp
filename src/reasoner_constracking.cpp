@@ -692,8 +692,6 @@ void ConservationTracking::add_constraints( const HypothesesGraph&g , boost::fun
             ++num_outarcs;
         }
 
-        // save for checking solutions later
-        hard_constraint_checker_.add_outgoing_constraint(transition_ids, app_node_map_[n], div_node_map_[n]);
 
         int div_cplex_id = -1;
         if (with_divisions_ && div_node_map_.count(n) > 0) {
@@ -713,6 +711,8 @@ void ConservationTracking::add_constraints( const HypothesesGraph&g , boost::fun
                 }
             }
             if (div_cplex_id != -1) {
+                // save for checking solutions later
+                hard_constraint_checker_.add_outgoing_constraint(transition_ids, app_node_map_[n], div_node_map_[n]);
                 cplex_idxs.push_back(div_cplex_id);
                 coeffs.push_back(-1);
             }
