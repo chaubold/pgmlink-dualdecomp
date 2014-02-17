@@ -71,6 +71,7 @@ protected:
     size_t current_sub_gm_id_;
     DualDecompositionSubGradient::InfType* current_sub_optimizer_;
     size_t timesteps_per_block_;
+    bool first_dd_iteration_;
 };
 
 }

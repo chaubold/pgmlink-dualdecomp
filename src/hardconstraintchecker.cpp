@@ -3,17 +3,21 @@
 
 namespace pgmlink {
 
-HardConstraintChecker::HardConstraintChecker()
+HardConstraintChecker::HardConstraintChecker():
+    adding_constraints_enabled_(true)
 {
 }
 
 void HardConstraintChecker::add_incoming_constraint(const IdList &transition_nodes, size_t detection_node)
 {
-    incoming_constraints_.push_back(std::make_pair(transition_nodes, detection_node));
+    if(adding_constraints_enabled_)
+        incoming_constraints_.push_back(std::make_pair(transition_nodes, detection_node));
 }
 
-bool HardConstraintChecker::check_incoming_constraints(const Configuration &config)
+int HardConstraintChecker::check_incoming_constraints(const Configuration &config)
 {
+    int num_violated_constraints = 0;
+
     // check all listed constraints
     for(std::vector< std::pair<IdList, size_t> >::iterator it = incoming_constraints_.begin();
         it != incoming_constraints_.end();
@@ -25,11 +29,11 @@ bool HardConstraintChecker::check_incoming_constraints(const Configuration &conf
         size_t num_incoming = 0;
         size_t num_detections = config[detection];
 
-        if(transition_nodes.size() == 0)
-        {
-            // if no incoming transitions, we don't care
-            continue;
-        }
+//        if(transition_nodes.size() == 0)
+//        {
+//            // if no incoming transitions, we don't care
+//            continue;
+//        }
 
         // count the number of incoming transitions = sum_j (Y_ij)
         for(IdList::iterator transition_node = transition_nodes.begin();
@@ -45,23 +49,26 @@ bool HardConstraintChecker::check_incoming_constraints(const Configuration &conf
             LOG(logWARNING) << "Num detections not equal to num incoming at nodes(values): "
                             << detection << "(" << num_detections << ") != "
                             << num_incoming << "(in " << transition_nodes.size() << " nodes)";
-            return false;
+            num_violated_constraints++;
         }
     }
 
-    return true;
+    return num_violated_constraints;
 }
 
 void HardConstraintChecker::add_outgoing_constraint(const IdList &transition_nodes,
                                                     size_t detection_node,
                                                     size_t division_node)
 {
-    outgoing_constraints_.push_back(boost::make_tuple(transition_nodes, detection_node, division_node));
+    if(adding_constraints_enabled_)
+        outgoing_constraints_.push_back(boost::make_tuple(transition_nodes, detection_node, division_node));
 }
 
 
-bool HardConstraintChecker::check_outgoing_constraints(const Configuration &config)
+int HardConstraintChecker::check_outgoing_constraints(const Configuration &config)
 {
+    int num_violated_constraints = 0;
+
     // check all listed constraints
     for(std::vector< boost::tuple<IdList, size_t, size_t> >::iterator it = outgoing_constraints_.begin();
         it != outgoing_constraints_.end();
@@ -86,7 +93,8 @@ bool HardConstraintChecker::check_outgoing_constraints(const Configuration &conf
             LOG(logWARNING) << "More divisions than detections at nodes(values): "
                             << detection << "(" << num_detections << ") < "
                             << division << "(" << num_divisions << ")";
-            return false;
+            num_violated_constraints++;
+            continue;
         }
 
         // count the number of outgoing transitions = sum_j (Y_ij)
@@ -104,20 +112,22 @@ bool HardConstraintChecker::check_outgoing_constraints(const Configuration &conf
                             << detection << "(" << num_detections << ") + "
                             << division << "(" << num_divisions << ") != "
                             << num_outgoing << "(in " << transition_nodes.size() << " nodes)";
-            return false;
+            num_violated_constraints++;
         }
     }
 
-    return true;
+    return num_violated_constraints;
 }
 
 void HardConstraintChecker::add_appearance_disappearance_constraint(size_t appearance_node, size_t disappearance_node)
 {
-    appearance_disappearance_constraints_.push_back(std::make_pair(appearance_node, disappearance_node));
+    if(adding_constraints_enabled_)
+        appearance_disappearance_constraints_.push_back(std::make_pair(appearance_node, disappearance_node));
 }
 
-bool HardConstraintChecker::check_appearance_disappearance_constraints(const Configuration &config)
+int HardConstraintChecker::check_appearance_disappearance_constraints(const Configuration &config)
 {
+    int num_violated_constraints = 0;
     // check all listed constraints
     for(std::vector< std::pair<size_t, size_t> >::iterator it = appearance_disappearance_constraints_.begin();
         it != appearance_disappearance_constraints_.end();
@@ -135,18 +145,23 @@ bool HardConstraintChecker::check_appearance_disappearance_constraints(const Con
             LOG(logWARNING) << "Appearance-Disappearance constraint violated by nodes(value): "
                             << appearance_node << "(" << num_appearances << ") != "
                             << disappearance_node << "(" << num_disappearances << ")";
-            return false;
+            num_violated_constraints++;
         }
     }
 
-    return true;
+    return num_violated_constraints;
 }
 
-bool HardConstraintChecker::check_configuration(const Configuration &config)
+int HardConstraintChecker::check_configuration(const Configuration &config)
 {
     return check_outgoing_constraints(config)
-            && check_incoming_constraints(config)
-            && check_appearance_disappearance_constraints(config);
+            + check_incoming_constraints(config)
+            + check_appearance_disappearance_constraints(config);
+}
+
+void HardConstraintChecker::disable_adding_constraints()
+{
+    adding_constraints_enabled_ = false;
 }
 
 } // namespace pgmlink

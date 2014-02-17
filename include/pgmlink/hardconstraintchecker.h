@@ -29,16 +29,19 @@ public:
             size_t appearance_node,
             size_t disappearance_node);
 
-    bool check_configuration(const Configuration& config);
+    int check_configuration(const Configuration& config);
+    void disable_adding_constraints();
 private:
-    bool check_outgoing_constraints(const Configuration& config);
-    bool check_incoming_constraints(const Configuration& config);
-    bool check_appearance_disappearance_constraints(const Configuration& config);
+    int check_outgoing_constraints(const Configuration& config);
+    int check_incoming_constraints(const Configuration& config);
+    int check_appearance_disappearance_constraints(const Configuration& config);
 
 private:
     std::vector< std::pair<IdList, size_t> > incoming_constraints_;
     std::vector< boost::tuple<IdList, size_t, size_t> > outgoing_constraints_;
     std::vector< std::pair<size_t, size_t> > appearance_disappearance_constraints_;
+
+    bool adding_constraints_enabled_;
 };
 
 } // namespace pgmlink

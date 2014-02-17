@@ -38,7 +38,8 @@ pgmlink::DualDecompositionConservationTracking::DualDecompositionConservationTra
           with_constraints),
       hypotheses_graph_(NULL),
       dd_optimizer_(NULL),
-      timesteps_per_block_(timesteps_per_block)
+      timesteps_per_block_(timesteps_per_block),
+      first_dd_iteration_(true)
 {}
 
 pgmlink::DualDecompositionConservationTracking::~DualDecompositionConservationTracking()
@@ -142,6 +143,14 @@ void pgmlink::DualDecompositionConservationTracking::configure_hard_constraints(
         size_t sub_gm_index,
         pgmlink::DualDecompositionConservationTracking::DualDecompositionSubGradient::InfType& optimizer)
 {
+    if(!first_dd_iteration_)
+    {
+        hard_constraint_checker_.disable_adding_constraints();
+    }
+    else
+    {
+        first_dd_iteration_ = false;
+    }
     assert(hypotheses_graph_ != NULL);
 
     LOG(logINFO) << "Found subproblem with " << subGM.numberOfVariables() << " variables";

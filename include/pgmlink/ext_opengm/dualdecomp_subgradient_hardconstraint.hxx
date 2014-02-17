@@ -436,6 +436,8 @@ void DualDecompositionSubGradientWithHardConstraints<GM,INF,DUALBLOCK>::getBound
       }
    }
 
+   int min_num_violated = std::numeric_limits<int>::max();
+
    if(somethingToFill){
       for(size_t varId=0; varId<gm_.numberOfVariables(); ++varId){
          for(typename SubVariableListType::const_iterator its = subVariableLists[varId].begin();
@@ -459,10 +461,10 @@ void DualDecompositionSubGradientWithHardConstraints<GM,INF,DUALBLOCK>::getBound
       for(size_t subModelId=0; subModelId<subGm_.size(); ++subModelId){
          if(modelWithSameVariables_[subModelId] == Tribool::False){
              ValueType value = gm_.evaluate(args[subModelId]);
-             if(!hard_constraint_checker_->check_configuration(args[subModelId]))
-             {
-                 value = std::numeric_limits<ValueType>::max();
-             }
+             int num_violated_constraints = hard_constraint_checker_->check_configuration(args[subModelId]);
+             value += 1000000 * num_violated_constraints;
+
+             min_num_violated = std::min(min_num_violated, num_violated_constraints);
 
              std::stringstream s;
              s << "Accumulating energy - evaluating GM with submodel " << subModelId << " solution: " << value << std::endl;
@@ -475,6 +477,8 @@ void DualDecompositionSubGradientWithHardConstraints<GM,INF,DUALBLOCK>::getBound
          }
       }
    }
+
+   LOG(pgmlink::logINFO) << "Min number violated constraints: " << min_num_violated;
 
    upperBound = ac.value();
    ac.state(upperState);
