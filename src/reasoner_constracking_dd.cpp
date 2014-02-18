@@ -3,8 +3,7 @@
 #include <lemon/graph_to_eps.h>
 #include "pgmlink/reasoner_constracking_dd.h"
 
-pgmlink::DualDecompositionConservationTracking::DualDecompositionConservationTracking(
-        unsigned int max_number_objects,
+pgmlink::DualDecompositionConservationTracking::DualDecompositionConservationTracking(unsigned int max_number_objects,
         boost::function<double (const Traxel&, const size_t)> detection,
         boost::function<double (const Traxel&, const size_t)> division,
         boost::function<double (const double)> transition,
@@ -19,7 +18,8 @@ pgmlink::DualDecompositionConservationTracking::DualDecompositionConservationTra
         bool with_disappearance,
         double transition_parameter,
         bool with_constraints,
-        size_t timesteps_per_block)
+        size_t timesteps_per_block,
+        size_t num_overlapping_timesteps)
     : pgmlink::ConservationTracking(
           max_number_objects,
           detection,
@@ -39,6 +39,7 @@ pgmlink::DualDecompositionConservationTracking::DualDecompositionConservationTra
       hypotheses_graph_(NULL),
       dd_optimizer_(NULL),
       timesteps_per_block_(timesteps_per_block),
+      num_overlapping_timesteps_(num_overlapping_timesteps),
       first_dd_iteration_(true)
 {}
 
@@ -228,7 +229,7 @@ void pgmlink::DualDecompositionConservationTracking::decompose_graph(
     opengm::GraphicalModelDecomposer<GraphicalModelType>::DecompositionType decomposition(
                 model->numberOfVariables(),model->numberOfFactors(),0);
 
-    const size_t num_time_steps = nodes_by_timestep_.size(); // TODO: this sometimes doesnt go far enough!
+    const size_t num_time_steps = nodes_by_timestep_.size();
     size_t num_sub_models = num_time_steps / timesteps_per_block_;
 
     if(num_time_steps % timesteps_per_block_ != 0)
@@ -243,10 +244,20 @@ void pgmlink::DualDecompositionConservationTracking::decompose_graph(
         std::vector<size_t> sub_variable_map(model->numberOfVariables(),
                                              std::numeric_limits<std::size_t>::max());
 
+        // using overlap, the size of each submodel becomes
+        // timestep_per_block + 2 * (overlapping_frames - 1)
+        // but the first and last submodel only need one overlap
+        size_t first_timestep = sub_model_id * timesteps_per_block_;
+        if(first_timestep > num_overlapping_timesteps_)
+        {
+            first_timestep -= num_overlapping_timesteps_ - 1;
+        }
+
+        size_t last_timestep = std::min((sub_model_id + 1) * timesteps_per_block_
+                                        + num_overlapping_timesteps_ - 1, num_time_steps);
+
         // add all variables to their submodels
-        for(size_t timestep = sub_model_id * timesteps_per_block_;
-            timestep < std::min((sub_model_id + 1) * timesteps_per_block_, num_time_steps);
-            ++timestep)
+        for(size_t timestep = first_timestep; timestep < last_timestep; ++timestep)
         {
             std::vector<size_t>& nodes_at_timestep = nodes_by_timestep_[timestep];
 

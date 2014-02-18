@@ -40,7 +40,8 @@ public:
             bool with_disappearance = true,
             double transition_parameter = 5,
             bool with_constraints = true,
-            size_t timesteps_per_block = 10
+            size_t timesteps_per_block = 10,
+            size_t num_overlapping_timesteps = 1
             );
 
     ~DualDecompositionConservationTracking();
@@ -71,6 +72,7 @@ protected:
     size_t current_sub_gm_id_;
     DualDecompositionSubGradient::InfType* current_sub_optimizer_;
     size_t timesteps_per_block_;
+    size_t num_overlapping_timesteps_;
     bool first_dd_iteration_;
 };
 

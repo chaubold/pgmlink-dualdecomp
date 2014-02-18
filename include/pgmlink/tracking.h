@@ -287,7 +287,8 @@ struct ConservationTrackingParameters{
           double border_width = 0,
           FieldOfView fov = FieldOfView(),
           bool with_constraints = true,
-          int timesteps_per_block = 10
+          int timesteps_per_block = 10,
+          int num_overlapping_timesteps = 1
           )
         : ConsTracking(max_number_objects,
                        max_neighbor_distance,
@@ -309,7 +310,8 @@ struct ConservationTrackingParameters{
                        border_width,
                        fov,
                        with_constraints),
-      timesteps_per_block_(timesteps_per_block)
+      timesteps_per_block_(timesteps_per_block),
+      num_overlapping_timesteps_(num_overlapping_timesteps)
       {}
 
       virtual ~ConsTrackingDD(){}
@@ -319,6 +321,7 @@ struct ConservationTrackingParameters{
               ConservationTrackingParameters* params);
 
       int timesteps_per_block_;
+      int num_overlapping_timesteps_;
     };
 }
 
