@@ -65,6 +65,7 @@ protected:
     virtual void extractSolution(std::vector<pgm::OpengmModelDeprecated::ogmInference::LabelType> &solution);
     virtual void add_constraints( const HypothesesGraph& );
     virtual size_t cplex_id(size_t opengm_id, size_t state);
+    void count_connected_components(GraphicalModelType *model);
 
 
     DualDecompositionSubGradient* dd_optimizer_;

@@ -1,6 +1,9 @@
 #include <opengm/inference/lpcplex.hxx>
 #include <opengm/graphicalmodel/graphicalmodel_factor.hxx>
 #include <lemon/graph_to_eps.h>
+#include "pgmlink/hypotheses.h"
+#include <lemon/connectivity.h>
+#include <lemon/adaptors.h>
 #include "pgmlink/reasoner_constracking_dd.h"
 
 pgmlink::DualDecompositionConservationTracking::DualDecompositionConservationTracking(unsigned int max_number_objects,
@@ -219,7 +222,101 @@ void pgmlink::DualDecompositionConservationTracking::debug_graph_output(Graphica
     exit(0);
 }
 
+void pgmlink::DualDecompositionConservationTracking::count_connected_components(GraphicalModelType* model)
+{
+//    // create a partition of all connected components
+//    opengm::Partition<size_t> connectedComponents(model->numberOfVariables());
+//    // iterate over all factors
+//    for(size_t i = 0; i < model->numberOfFactors(); i++) {
+//        // iterate over all connected variables of factor and merge them to one partition
+//        const GraphicalModelType::ConstVariableIterator variablesBegin = model->variablesOfFactorBegin(i);
+//        const GraphicalModelType::ConstVariableIterator variablesEnd = model->variablesOfFactorEnd(i);
+//        OPENGM_ASSERT(variablesBegin != variablesEnd);
 
+//        for(GraphicalModelType::ConstVariableIterator iter = variablesBegin + 1; iter != variablesEnd; iter++) {
+//            connectedComponents.merge(*(iter - 1), *iter);
+//        }
+//    }
+
+//    LOG(pgmlink::logINFO) << "Number of Connected Components: " << connectedComponents.numberOfSets();
+
+    // hypotheses graph connected components
+    lemon::Undirector<const HypothesesGraph> undirected_hypotheses_graph(*hypotheses_graph_);
+    lemon::Undirector<const HypothesesGraph>::NodeMap<int> connected_components(undirected_hypotheses_graph);
+
+    int num_connected_components = lemon::connectedComponents(undirected_hypotheses_graph, connected_components);
+    LOG(pgmlink::logINFO) << "Number of Connected Components: " << num_connected_components;
+
+    {
+        std::map<int, int> component_cardinality;
+        for(lemon::Undirector<const HypothesesGraph>::NodeIt n(undirected_hypotheses_graph); n != lemon::INVALID; ++n)
+        {
+            component_cardinality[connected_components[n]]++;
+        }
+
+        for(std::map<int, int>::iterator it = component_cardinality.begin(); it != component_cardinality.end(); ++it)
+        {
+            LOG(pgmlink::logINFO) << "\tFound component " << it->first << " containing " << it->second << " nodes";
+        }
+    }
+
+    // check for bridge nodes in hypotheses graph
+    lemon::Undirector<const HypothesesGraph>::NodeMap<bool> node_filter(undirected_hypotheses_graph);
+    lemon::Undirector<const HypothesesGraph>::EdgeMap<bool> edge_filter(undirected_hypotheses_graph);
+    lemon::SubGraph< const lemon::Undirector<const HypothesesGraph> > sub_graph(undirected_hypotheses_graph,
+                                                                                node_filter, edge_filter);
+
+    for(lemon::Undirector<const HypothesesGraph>::EdgeIt e(undirected_hypotheses_graph); e != lemon::INVALID; ++e)
+    {
+        sub_graph.enable(e);
+    }
+    for(lemon::Undirector<const HypothesesGraph>::NodeIt n(undirected_hypotheses_graph); n != lemon::INVALID; ++n)
+    {
+        sub_graph.enable(n);
+    }
+
+    for(lemon::Undirector<const HypothesesGraph>::EdgeIt e(undirected_hypotheses_graph); e != lemon::INVALID; ++e)
+    {
+        sub_graph.disable(e);
+        int new_num_connected_components = lemon::countConnectedComponents(sub_graph);
+
+        if(new_num_connected_components > num_connected_components)
+        {
+            num_connected_components = new_num_connected_components;
+            //LOG(pgmlink::logINFO) << "Increased number of Connected Components to: " << num_connected_components;
+        }
+        else
+        {
+            sub_graph.enable(e);
+        }
+    }
+
+    LOG(pgmlink::logINFO) << "Finished checking for bridges, now we have " << num_connected_components << " components";
+
+    {
+        lemon::SubGraph< const lemon::Undirector<const HypothesesGraph> >::NodeMap<int> connected_components(sub_graph);
+
+        num_connected_components = lemon::connectedComponents(sub_graph, connected_components);
+
+        std::map<int, int> component_cardinality;
+        for(lemon::SubGraph< const lemon::Undirector<const HypothesesGraph> >::NodeIt n(sub_graph); n != lemon::INVALID; ++n)
+        {
+            component_cardinality[connected_components[n]]++;
+        }
+
+        float average_size = 0;
+        for(std::map<int, int>::iterator it = component_cardinality.begin(); it != component_cardinality.end(); ++it)
+        {
+            LOG(pgmlink::logINFO) << "\tFound component " << it->first << " containing " << it->second << " nodes";
+            average_size += it->second;
+        }
+        average_size /= num_connected_components;
+
+        LOG(pgmlink::logINFO) << "Average component size: " << average_size << " of " << num_connected_components << " components";
+    }
+
+    std::exit(0);
+}
 
 void pgmlink::DualDecompositionConservationTracking::decompose_graph(
         GraphicalModelType* model,
@@ -359,6 +456,7 @@ void pgmlink::DualDecompositionConservationTracking::infer()
     LOG(pgmlink::logDEBUG) << "Original Graph had: " << model->numberOfFactors() << " factors and "
               << model->numberOfVariables() << " variables";
 
+//    count_connected_components(model);
     decompose_graph(model, dd_parameter);
 
 //    debug_graph_output(model);
