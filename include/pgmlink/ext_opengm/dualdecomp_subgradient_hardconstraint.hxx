@@ -9,6 +9,8 @@
 
 #include <opengm/inference/inference.hxx>
 #include <opengm/inference/visitors/visitor.hxx>
+#include <opengm/graphicalmodel/space/discretespace.hxx>
+#include <opengm/graphicalmodel/graphicalmodel.hxx>
 #include <opengm/inference/dualdecomposition/dualdecomposition_base.hxx>
 #include <opengm/inference/dualdecomposition/dualdecomposition_subgradient.hxx>
 
