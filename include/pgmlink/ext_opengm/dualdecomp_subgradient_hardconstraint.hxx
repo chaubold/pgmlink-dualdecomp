@@ -269,12 +269,9 @@ infer(VISITOR& visitor)
 
             weights[0] *= numDuals; // scale all weights such that their sum equals the number of duals
 
-            LOG(pgmlink::logINFO) << "Weights: " << weights[0] << ", " << weights[1];
-            LOG(pgmlink::logINFO) << "NumDuals: " << numDuals;
-
             for(size_t i=0; i<numDuals; ++i){
                 getPartialSubGradient<size_t>((*lit).subModelId_, (*lit).subIndices_, s);
-                LOG(pgmlink::logINFO) << "Dual " << i << ": in submodel " << (*lit).subModelId_;
+
                 ++lit;
                 (*it).duals_[i](s.begin()) += stepsize;
                 for(size_t j=0; j<numDuals; ++j){
