@@ -7,6 +7,9 @@
 #include <list>
 #include <typeinfo>
 
+#include <stdlib.h>     /* srand, rand */
+#include <time.h>       /* time */
+
 #include <opengm/inference/inference.hxx>
 #include <opengm/inference/visitors/visitor.hxx>
 #include <opengm/graphicalmodel/space/discretespace.hxx>
@@ -177,6 +180,8 @@ infer(VISITOR& visitor)
     //visitor.startInference();
     visitor.begin(*this,this->value(),this->bound());
 
+    srand (time(NULL));
+
     opengm::Timer overallTimer;
     overallTimer.tic();
 
@@ -226,7 +231,7 @@ infer(VISITOR& visitor)
         acUpperBound_(upperBound_, temp);
 
         //dualStep
-        double stepsize;
+        double stepsize = 1.0 / (iteration + 1.0);
         if(para_.useAdaptiveStepsize_){
             stepsize = para_.stepsizeStride_ * fabs(acUpperBound_.value() - lowerBound_)
                     /(*this).subGradientNorm(1);
@@ -253,12 +258,27 @@ infer(VISITOR& visitor)
             const size_t numDuals = (*it).duals_.size();
             typename SubFactorListType::const_iterator lit = (*((*it).subFactorList_)).begin();
             s.resize((*lit).subIndices_.size());
+
+            std::vector<double> weights;
+            weights.push_back(1.0 * rand() / RAND_MAX); // random number between 0 and 1
+
+            for(size_t i = 1; i < numDuals; ++i)
+            {
+                weights.push_back((1.0 - weights[0]) / (numDuals-1)*numDuals); // random weight for the other duals
+            }
+
+            weights[0] *= numDuals; // scale all weights such that their sum equals the number of duals
+
+            LOG(pgmlink::logINFO) << "Weights: " << weights[0] << ", " << weights[1];
+            LOG(pgmlink::logINFO) << "NumDuals: " << numDuals;
+
             for(size_t i=0; i<numDuals; ++i){
                 getPartialSubGradient<size_t>((*lit).subModelId_, (*lit).subIndices_, s);
+                LOG(pgmlink::logINFO) << "Dual " << i << ": in submodel " << (*lit).subModelId_;
                 ++lit;
                 (*it).duals_[i](s.begin()) += stepsize;
                 for(size_t j=0; j<numDuals; ++j){
-                    (*it).duals_[j](s.begin()) -= stepsize/numDuals;
+                    (*it).duals_[j](s.begin()) -= weights[j] * stepsize/numDuals;
                 }
             }
             (*it).test();
