@@ -1367,7 +1367,7 @@ BOOST_AUTO_TEST_CASE( Tracking_ConservationTrackingDD_TranslationVector_Tracklet
               2, //n_dim
               5, //transition_parameter
               0, //border_width for app/disapp costs
-              fov, 3, 2
+              fov, true, 3, 2
               );
 
     std::cout << "Run Conservation tracking" << std::endl;
