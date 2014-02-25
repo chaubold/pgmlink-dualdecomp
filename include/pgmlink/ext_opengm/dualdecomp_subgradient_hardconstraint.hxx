@@ -489,7 +489,7 @@ void DualDecompositionSubGradientWithHardConstraints<GM,INF,DUALBLOCK>::getBound
             if(modelWithSameVariables_[subModelId] == Tribool::False){
                 ValueType value = gm_.evaluate(args[subModelId]);
                 int num_violated_constraints = hard_constraint_checker_->check_configuration(args[subModelId]);
-                value += 1000000 * num_violated_constraints;
+                value += 360 * num_violated_constraints;
 
                 min_num_violated = std::min(min_num_violated, num_violated_constraints);
 
