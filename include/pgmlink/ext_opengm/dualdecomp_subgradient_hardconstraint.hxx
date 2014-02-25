@@ -249,7 +249,7 @@ infer(VISITOR& visitor)
         }
 
         if(typeid(AccumulationType) == typeid(opengm::Minimizer))
-            stepsize *=1;
+            stepsize *= 1;
         else
             stepsize *= -1;
 
@@ -398,112 +398,112 @@ template<class GM, class INF, class DUALBLOCK>
 template <class ACC>
 void DualDecompositionSubGradientWithHardConstraints<GM,INF,DUALBLOCK>::getBounds
 (
-   const std::vector<std::vector<LabelType> >& subStates,
-   const std::vector<SubVariableListType>& subVariableLists,
-   ValueType& lowerBound,
-   ValueType& upperBound,
-   std::vector<LabelType> & upperState
-   )
+        const std::vector<std::vector<LabelType> >& subStates,
+        const std::vector<SubVariableListType>& subVariableLists,
+        ValueType& lowerBound,
+        ValueType& upperBound,
+        std::vector<LabelType> & upperState
+        )
 {
-   // Calculate lower-bound
-   lowerBound=0;
-   for(size_t subModelId=0; subModelId<subGm_.size(); ++subModelId){
-       ValueType subModelEnergy = subGm_[subModelId].evaluate(subStates[subModelId]);
-       LOG(pgmlink::logDEBUG1) << "SubModel " << subModelId << " has energy: " << subModelEnergy;
-      lowerBound += subModelEnergy;
-   }
+    // Calculate lower-bound
+    lowerBound=0;
+    for(size_t subModelId=0; subModelId<subGm_.size(); ++subModelId){
+        ValueType subModelEnergy = subGm_[subModelId].evaluate(subStates[subModelId]);
+        LOG(pgmlink::logDEBUG1) << "SubModel " << subModelId << " has energy: " << subModelEnergy;
+        lowerBound += subModelEnergy;
+    }
 
-   // Calculate upper-bound
-   Accumulation<ValueType,LabelType,ACC> ac;
+    // Calculate upper-bound
+    Accumulation<ValueType,LabelType,ACC> ac;
 
-   // Set modelWithSameVariables_
-   if(modelWithSameVariables_[0] == Tribool::Maybe){
-      for(size_t varId=0; varId<gm_.numberOfVariables(); ++varId){
-         for(typename SubVariableListType::const_iterator its = subVariableLists[varId].begin();
-             its!=subVariableLists[varId].end();++its){
-            const size_t& subModelId    = (*its).subModelId_;
-            const size_t& subVariableId = (*its).subVariableId_;
-            if(subVariableId != varId){
-               modelWithSameVariables_[subModelId] = Tribool::False;
+    // Set modelWithSameVariables_
+    if(modelWithSameVariables_[0] == Tribool::Maybe){
+        for(size_t varId=0; varId<gm_.numberOfVariables(); ++varId){
+            for(typename SubVariableListType::const_iterator its = subVariableLists[varId].begin();
+                its!=subVariableLists[varId].end();++its){
+                const size_t& subModelId    = (*its).subModelId_;
+                const size_t& subVariableId = (*its).subVariableId_;
+                if(subVariableId != varId){
+                    modelWithSameVariables_[subModelId] = Tribool::False;
+                }
             }
-         }
-      }
-      for(size_t subModelId=0; subModelId<subGm_.size(); ++subModelId){
-         if(gm_.numberOfVariables() != subGm_[subModelId].numberOfVariables()){
-            modelWithSameVariables_[subModelId] = Tribool::False;
-         }
-         if(modelWithSameVariables_[subModelId] == Tribool::Maybe){
-            modelWithSameVariables_[subModelId] = Tribool::True;
-         }
-      }
-   }
-
-   // Build Primal-Candidates
-   std::vector<std::vector<LabelType> > args(subGm_.size());
-   bool somethingToFill = false;
-   for(size_t subModelId=0; subModelId<subGm_.size(); ++subModelId){
-      if(modelWithSameVariables_[subModelId] == Tribool::False){
-         args[subModelId].assign(gm_.numberOfVariables(),std::numeric_limits<LabelType>::max());
-         somethingToFill = true;
-      }
-      else{
-          std::stringstream s;
-          s << "Accumulating primal candidates - evaluating GM with submodel " << subModelId << " solution:" << std::endl;
-          for(size_t i = 0; i < subStates[subModelId].size(); ++i)
-          {
-              s << subStates[subModelId][i] << " ";
-          }
-          LOG(pgmlink::logDEBUG2) << s.str();
-         ac(gm_.evaluate(subStates[subModelId]),subStates[subModelId]);
-      }
-   }
-
-   int min_num_violated = std::numeric_limits<int>::max();
-
-   if(somethingToFill){
-      for(size_t varId=0; varId<gm_.numberOfVariables(); ++varId){
-         for(typename SubVariableListType::const_iterator its = subVariableLists[varId].begin();
-             its!=subVariableLists[varId].end();++its){
-            const size_t& subModelId    = (*its).subModelId_;
-            const size_t& subVariableId = (*its).subVariableId_;
-            if(modelWithSameVariables_[subModelId] == Tribool::False){
-               args[subModelId][varId] = subStates[subModelId][subVariableId];
+        }
+        for(size_t subModelId=0; subModelId<subGm_.size(); ++subModelId){
+            if(gm_.numberOfVariables() != subGm_[subModelId].numberOfVariables()){
+                modelWithSameVariables_[subModelId] = Tribool::False;
             }
-         }
-         for(size_t subModelId=0; subModelId<subGm_.size(); ++subModelId){
-            if(modelWithSameVariables_[subModelId] == Tribool::False &&
-               args[subModelId][varId] == std::numeric_limits<LabelType>::max())
+            if(modelWithSameVariables_[subModelId] == Tribool::Maybe){
+                modelWithSameVariables_[subModelId] = Tribool::True;
+            }
+        }
+    }
+
+    // Build Primal-Candidates
+    std::vector<std::vector<LabelType> > args(subGm_.size());
+    bool somethingToFill = false;
+    for(size_t subModelId=0; subModelId<subGm_.size(); ++subModelId){
+        if(modelWithSameVariables_[subModelId] == Tribool::False){
+            args[subModelId].assign(gm_.numberOfVariables(),std::numeric_limits<LabelType>::max());
+            somethingToFill = true;
+        }
+        else{
+            std::stringstream s;
+            s << "Accumulating primal candidates - evaluating GM with submodel " << subModelId << " solution:" << std::endl;
+            for(size_t i = 0; i < subStates[subModelId].size(); ++i)
             {
-               const size_t& aSubModelId    = subVariableLists[varId].front().subModelId_;
-               const size_t& aSubVariableId = subVariableLists[varId].front().subVariableId_;
-               args[subModelId][varId] = subStates[aSubModelId][aSubVariableId];
+                s << subStates[subModelId][i] << " ";
             }
-         }
-      }
-      for(size_t subModelId=0; subModelId<subGm_.size(); ++subModelId){
-         if(modelWithSameVariables_[subModelId] == Tribool::False){
-             ValueType value = gm_.evaluate(args[subModelId]);
-             int num_violated_constraints = hard_constraint_checker_->check_configuration(args[subModelId]);
-             value += 1000000 * num_violated_constraints;
+            LOG(pgmlink::logDEBUG2) << s.str();
+            ac(gm_.evaluate(subStates[subModelId]),subStates[subModelId]);
+        }
+    }
 
-             min_num_violated = std::min(min_num_violated, num_violated_constraints);
+    int min_num_violated = std::numeric_limits<int>::max();
 
-             std::stringstream s;
-             s << "Accumulating energy - evaluating GM with submodel " << subModelId << " solution: " << value << std::endl;
-             for(size_t i = 0; i < args[subModelId].size(); ++i)
-             {
-                 s << args[subModelId][i] << " ";
-             }
-             LOG(pgmlink::logDEBUG2) << s.str();
-            ac(value,args[subModelId]);
-         }
-      }
-   }
+    if(somethingToFill){
+        for(size_t varId=0; varId<gm_.numberOfVariables(); ++varId){
+            for(typename SubVariableListType::const_iterator its = subVariableLists[varId].begin();
+                its!=subVariableLists[varId].end();++its){
+                const size_t& subModelId    = (*its).subModelId_;
+                const size_t& subVariableId = (*its).subVariableId_;
+                if(modelWithSameVariables_[subModelId] == Tribool::False){
+                    args[subModelId][varId] = subStates[subModelId][subVariableId];
+                }
+            }
+            for(size_t subModelId=0; subModelId<subGm_.size(); ++subModelId){
+                if(modelWithSameVariables_[subModelId] == Tribool::False &&
+                        args[subModelId][varId] == std::numeric_limits<LabelType>::max())
+                {
+                    const size_t& aSubModelId    = subVariableLists[varId].front().subModelId_;
+                    const size_t& aSubVariableId = subVariableLists[varId].front().subVariableId_;
+                    args[subModelId][varId] = subStates[aSubModelId][aSubVariableId];
+                }
+            }
+        }
+        for(size_t subModelId=0; subModelId<subGm_.size(); ++subModelId){
+            if(modelWithSameVariables_[subModelId] == Tribool::False){
+                ValueType value = gm_.evaluate(args[subModelId]);
+                int num_violated_constraints = hard_constraint_checker_->check_configuration(args[subModelId]);
+                value += 1000000 * num_violated_constraints;
 
-   LOG(pgmlink::logINFO) << "Min number violated constraints: " << min_num_violated;
+                min_num_violated = std::min(min_num_violated, num_violated_constraints);
 
-   upperBound = ac.value();
-   ac.state(upperState);
+                std::stringstream s;
+                s << "Accumulating energy - evaluating GM with submodel " << subModelId << " solution: " << value << std::endl;
+                for(size_t i = 0; i < args[subModelId].size(); ++i)
+                {
+                    s << args[subModelId][i] << " ";
+                }
+                LOG(pgmlink::logDEBUG2) << s.str();
+                ac(value,args[subModelId]);
+            }
+        }
+    }
+
+    LOG(pgmlink::logINFO) << "Min number violated constraints: " << min_num_violated;
+
+    upperBound = ac.value();
+    ac.state(upperState);
 }
 
 
