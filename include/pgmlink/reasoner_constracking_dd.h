@@ -4,8 +4,15 @@
 #include <boost/function.hpp>
 #include <opengm/inference/inference.hxx>
 #include <opengm/inference/lpcplex.hxx>
+#include <opengm/graphicalmodel/space/discretespace.hxx>
+#include <opengm/graphicalmodel/graphicalmodel.hxx>
 
-#include "ext_opengm/dualdecomp_subgradient_hardconstraint.hxx"
+#define USE_BUNDLE
+#ifdef USE_BUNDLE
+    #include "ext_opengm/dualdecomp_bundle_hardconstraint.hxx"
+#else
+    #include "ext_opengm/dualdecomp_subgradient_hardconstraint.hxx"
+#endif
 #include "reasoner_constracking.h"
 #include "pgm.h"
 
@@ -18,10 +25,20 @@ public:
     typedef pgm::OpengmModelDeprecated::Energy ValueType;
     typedef pgm::OpengmModelDeprecated::ogmGraphicalModel GraphicalModelType;
 
+#ifdef USE_BUNDLE
+    typedef opengm::DDDualVariableBlock2< marray::View<ValueType, false> > DualBlockType;
+#else
     typedef opengm::DDDualVariableBlock< marray::Marray<ValueType> > DualBlockType;
+#endif
+
     typedef opengm::DualDecompositionBase<pgm::OpengmModelDeprecated::ogmGraphicalModel, DualBlockType>::SubGmType DualDecompositionSubGraphType;
     typedef opengm::LPCplex<DualDecompositionSubGraphType, pgm::OpengmModelDeprecated::ogmAccumulator> InfType;
+
+#ifdef USE_BUNDLE
+    typedef opengm::DualDecompositionBundleWithHardConstraints<GraphicalModelType,InfType,DualBlockType> DualDecompositionSubGradient;
+#else
     typedef opengm::DualDecompositionSubGradientWithHardConstraints<GraphicalModelType,InfType,DualBlockType> DualDecompositionSubGradient;
+#endif
 
 public:
     DualDecompositionConservationTracking(

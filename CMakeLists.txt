@@ -83,6 +83,11 @@ endif()
 ## assume that HDF5 is installed (for vigra random forest)
 ADD_DEFINITIONS(-DHasHDF5)
 
+## opengm defines - use conic bundle for dual decomposition
+add_definitions(-DWITH_CONICBUNDLE)
+include_directories(SYSTEM /Users/chaubold/hci/code/ilastik/src/opengm-git/src/external/ConicBundle-v0.3.11.src-patched/include)
+link_directories(/Users/chaubold/hci/code/ilastik/src/opengm-git/src/external/ConicBundle-v0.3.11.src-patched/lib)
+
 # print out the dependencies
 message(STATUS "Dependencies include dirs (you should check if they match the found libs):")
 message(STATUS "  ANN: ${ANN_INCLUDE_DIR}")
@@ -158,7 +163,7 @@ endif(WIN32)
 include_directories( ${CMAKE_CURRENT_BINARY_DIR}/include )
 
 target_link_libraries(pgmlink ${ANN_LIBRARIES} ${Boost_LIBRARIES}  ${CPLEX_LIBRARIES} ${VIGRA_IMPEX_LIBRARY} ${LEMON_LIBRARIES} ${HDF5_LIBRARIES} ${Mlpack_LIBRARIES} ${Armadillo_LIBRARIES})
-
+target_link_libraries(pgmlink cb)
 # Install target pgmlink
 install(TARGETS pgmlink
 	ARCHIVE DESTINATION lib
