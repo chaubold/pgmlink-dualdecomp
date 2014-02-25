@@ -99,14 +99,15 @@ void ConservationTracking::extractSolution(std::vector<pgm::OpengmModelDeprecate
         throw runtime_error("GraphicalModel::infer(): solution extraction terminated abnormally");
     }
 
-    std::cout << "Primary - Found solution:\n";
+    std::stringstream s;
+    s << "Primary - Found solution: ";
     for(size_t i = 0; i < solution.size(); i++)
     {
-        std::cout << solution[i] << " ";
+        s << solution[i] << " ";
     }
-    std::cout << std::endl;
+    LOG(pgmlink::logINFO) << s.str();
 
-    std::cout << "Solution has energy: " << optimizer_->value() << std::endl;
+    LOG(pgmlink::logINFO) << "Solution has energy: " << optimizer_->value();
 }
 
 void ConservationTracking::conclude(HypothesesGraph& g) {
@@ -607,8 +608,8 @@ void ConservationTracking::add_finite_factors(const HypothesesGraph& g) {
 }
 
 size_t ConservationTracking::cplex_id(size_t opengm_id, size_t state) {
-    std::cout << "??? found required pgm var: " << opengm_id << " value: " << state << " in cplex: "
-              << optimizer_->lpNodeVi(opengm_id, state) << std::endl;
+    LOG(pgmlink::logDEBUG4) << "??? found required pgm var: " << opengm_id << " value: " << state << " in cplex: "
+              << optimizer_->lpNodeVi(opengm_id, state);
     return optimizer_->lpNodeVi(opengm_id, state);
 }
 
@@ -617,13 +618,14 @@ void ConservationTracking::add_constraint(std::vector<std::size_t>::iterator ids
                                           std::vector<int>::iterator coeffs_begin,
                                           int lower, int higher, const char* name)
 {
-    std::cout << "++++++ adding constraint between cplex nodes: ";
+    std::stringstream s;
+    s << "++++++ adding constraint between cplex nodes: ";
     for(std::vector<std::size_t>::iterator it = ids_begin; it != ids_end; ++it)
     {
-        std::cout << *it << " ";
+        s << *it << " ";
     }
-    std::cout << std::endl;
-    std::cout << "++++++ " << name << std::endl;
+    LOG(pgmlink::logDEBUG4) << s.str();
+    LOG(pgmlink::logDEBUG4) << "++++++ " << name;
 
     optimizer_->addConstraint(ids_begin, ids_end, coeffs_begin, lower, higher, name);
 }
