@@ -112,7 +112,9 @@ private:
 
 //**********************************************************************************
 template<class GM, class INF, class DUALBLOCK>
-DualDecompositionSubGradientWithHardConstraints<GM,INF,DUALBLOCK>::DualDecompositionSubGradientWithHardConstraints(const GmType& gm, const HardConstraintConfigurator& hcc, pgmlink::HardConstraintChecker* hard_constraint_checker)
+DualDecompositionSubGradientWithHardConstraints<GM,INF,DUALBLOCK>::DualDecompositionSubGradientWithHardConstraints(const GmType& gm,
+                                                                                                                   const HardConstraintConfigurator& hcc,
+                                                                                                                   pgmlink::HardConstraintChecker* hard_constraint_checker)
     : DualDecompositionBase<GmType, DualBlockType >(gm),
       hardConstraintConfigurator_(hcc),
       hard_constraint_checker_(hard_constraint_checker)
@@ -124,7 +126,10 @@ DualDecompositionSubGradientWithHardConstraints<GM,INF,DUALBLOCK>::DualDecomposi
 }
 
 template<class GM, class INF, class DUALBLOCK>
-DualDecompositionSubGradientWithHardConstraints<GM,INF,DUALBLOCK>::DualDecompositionSubGradientWithHardConstraints(const GmType& gm, const Parameter& para, const HardConstraintConfigurator& hcc, pgmlink::HardConstraintChecker *hard_constraint_checker)
+DualDecompositionSubGradientWithHardConstraints<GM,INF,DUALBLOCK>::DualDecompositionSubGradientWithHardConstraints(const GmType& gm,
+                                                                                                                   const Parameter& para,
+                                                                                                                   const HardConstraintConfigurator& hcc,
+                                                                                                                   pgmlink::HardConstraintChecker *hard_constraint_checker)
     :   DualDecompositionBase<GmType, DualBlockType >(gm),para_(para),
       hardConstraintConfigurator_(hcc),
       hard_constraint_checker_(hard_constraint_checker)

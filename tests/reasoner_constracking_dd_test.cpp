@@ -137,7 +137,7 @@ BOOST_AUTO_TEST_CASE( Tracking_ConservationTrackingDD_Merger ) {
     }
     BOOST_CHECK_EQUAL(count_moves, 5);
 }
-#define ALL_TESTS 1
+#define ALL_TESTS 0
 #if ALL_TESTS
 BOOST_AUTO_TEST_CASE( Tracking_ConservationTrackingDD_Division ) {
 
@@ -809,8 +809,6 @@ BOOST_AUTO_TEST_CASE( Tracking_ConservationTrackingDD_AppearanceSimple ) {
     BOOST_CHECK_EQUAL(num_events, 4);
 }
 
-#endif
-
 BOOST_AUTO_TEST_CASE( Tracking_ConservationTrackingDD_Tracklets ) {
 
     std::cout << "Constructing HypothesesGraph" << std::endl;
@@ -928,8 +926,6 @@ BOOST_AUTO_TEST_CASE( Tracking_ConservationTrackingDD_Tracklets ) {
     }
     BOOST_CHECK_EQUAL(moves, 6);
 }
-
-#if ALL_TESTS
 
 //BOOST_AUTO_TEST_CASE( Tracking_ConservationTrackingDD_Merger3 ) {
 
