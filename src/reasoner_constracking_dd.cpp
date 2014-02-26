@@ -318,6 +318,88 @@ void pgmlink::DualDecompositionConservationTracking::count_connected_components(
     std::exit(0);
 }
 
+void pgmlink::DualDecompositionConservationTracking::decomposition_add_variables(
+        size_t sub_model_id,
+        opengm::GraphicalModelDecomposer<GraphicalModelType>::DecompositionType& decomposition,
+        std::vector<size_t>& sub_variable_map,
+        const size_t num_time_steps)
+{
+    size_t first_timestep = sub_model_id * timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP;
+
+    // each submodel includes at least the next timestep's disappearance and appearance node,
+    // which then become the 2 dual variables
+    size_t last_timestep = std::min((sub_model_id + 1) * timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP
+                                    + APPEARANCE_NODE,
+                                    num_time_steps);
+
+    // add all variables to their submodels
+    for(size_t timestep = first_timestep; timestep < last_timestep; ++timestep)
+    {
+        std::vector<size_t>& nodes_at_timestep = nodes_by_timestep_[timestep];
+
+        for(std::vector<size_t>::iterator node = nodes_at_timestep.begin();
+            node != nodes_at_timestep.end();
+            ++node)
+        {
+            // only add, if we do not have this node in that submodel yet
+            if(sub_variable_map[*node] == std::numeric_limits<std::size_t>::max())
+            {
+                sub_variable_map[*node] = decomposition.addSubVariable(sub_model_id, *node);
+                LOG(pgmlink::logDEBUG2) << "Adding node: " << *node << " to submodel: " << sub_model_id;
+            }
+        }
+    }
+}
+
+void pgmlink::DualDecompositionConservationTracking::decomposition_add_factors(
+        size_t sub_model_id,
+        opengm::GraphicalModelDecomposer<GraphicalModelType>::DecompositionType& decomposition,
+        std::vector<size_t>& sub_variable_map,
+        GraphicalModelType* model)
+{
+    // add factors to the submodels in which all linked variables are found
+    for(size_t factor_id = 0; factor_id < model->numberOfFactors(); ++factor_id)
+    {
+        if((*model)[factor_id].numberOfVariables() == 0)
+        {
+           std::vector<size_t> sub_variable_indices(0);
+           decomposition.addSubFactor(sub_model_id, factor_id, sub_variable_indices);
+        }
+        else
+        {
+            if((*model)[factor_id].numberOfVariables() == 1 && sub_model_id == 0)
+            {
+                LOG(pgmlink::logDEBUG2) << "Found unary for variable: "
+                          << (*model)[factor_id].variableIndex(0);
+            }
+
+            std::vector<size_t> sub_variable_indices((*model)[factor_id].numberOfVariables());
+            bool all_variables_inside_submodel = true;
+
+            std::stringstream factor_output;
+            factor_output << "Adding factor: " << factor_id << " to submodel " << sub_model_id << " with factors: ";
+
+            for(size_t i = 0;
+                i < (*model)[factor_id].numberOfVariables() && all_variables_inside_submodel;
+                ++i) {
+                const size_t var_id = (*model)[factor_id].variableIndex(i);
+                sub_variable_indices[i] = sub_variable_map[var_id];
+                factor_output << var_id << " ";
+
+                bool found = (sub_variable_map[var_id] != std::numeric_limits<std::size_t>::max());
+
+                all_variables_inside_submodel = all_variables_inside_submodel && found;
+            }
+
+            if(all_variables_inside_submodel)
+            {
+                decomposition.addSubFactor(sub_model_id, factor_id, sub_variable_indices);
+                LOG(pgmlink::logDEBUG2) << factor_output.str();
+            }
+        }
+    }
+}
+
 void pgmlink::DualDecompositionConservationTracking::decompose_graph(
         GraphicalModelType* model,
         DualDecompositionSubGradient::Parameter& dd_parameter)
@@ -325,7 +407,8 @@ void pgmlink::DualDecompositionConservationTracking::decompose_graph(
     opengm::GraphicalModelDecomposer<GraphicalModelType>::DecompositionType decomposition(
                 model->numberOfVariables(),model->numberOfFactors(),0);
 
-    const size_t num_time_steps = nodes_by_timestep_.rbegin()->first + 1; // key of last element is largest timestep number!
+    // key of last element is largest timestep number!
+    const size_t num_time_steps = nodes_by_timestep_.rbegin()->first + 1;
     size_t num_sub_models = num_time_steps / (timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP);
 
     if(num_time_steps % (timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP) != 0)
@@ -333,6 +416,7 @@ void pgmlink::DualDecompositionConservationTracking::decompose_graph(
         num_sub_models++;
     }
 
+    // create submodels
     for(size_t sub_model_id = 0; sub_model_id < num_sub_models; ++sub_model_id)
     {
         decomposition.addSubModel();
@@ -340,73 +424,8 @@ void pgmlink::DualDecompositionConservationTracking::decompose_graph(
         std::vector<size_t> sub_variable_map(model->numberOfVariables(),
                                              std::numeric_limits<std::size_t>::max());
 
-        size_t first_timestep = sub_model_id * timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP;
-
-        // each submodel includes at least the next timestep's disappearance and appearance node,
-        // which then become the 2 dual variables
-        size_t last_timestep = std::min((sub_model_id + 1) * timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP
-                                        + APPEARANCE_NODE,
-                                        num_time_steps);
-
-        // add all variables to their submodels
-        for(size_t timestep = first_timestep; timestep < last_timestep; ++timestep)
-        {
-            std::vector<size_t>& nodes_at_timestep = nodes_by_timestep_[timestep];
-
-            for(std::vector<size_t>::iterator node = nodes_at_timestep.begin();
-                node != nodes_at_timestep.end();
-                ++node)
-            {
-                // only add, if we do not have this node in that submodel yet
-                if(sub_variable_map[*node] == std::numeric_limits<std::size_t>::max())
-                {
-                    sub_variable_map[*node] = decomposition.addSubVariable(sub_model_id, *node);
-                    LOG(pgmlink::logDEBUG2) << "Adding node: " << *node << " to submodel: " << sub_model_id;
-                }
-            }
-        }
-
-        // add factors to the submodels in which all linked variables are found
-        for(size_t factor_id = 0; factor_id < model->numberOfFactors(); ++factor_id)
-        {
-            if((*model)[factor_id].numberOfVariables() == 0)
-            {
-               std::vector<size_t> sub_variable_indices(0);
-               decomposition.addSubFactor(sub_model_id, factor_id, sub_variable_indices);
-            }
-            else
-            {
-                if((*model)[factor_id].numberOfVariables() == 1 && sub_model_id == 0)
-                {
-                    LOG(pgmlink::logDEBUG2) << "Found unary for variable: "
-                              << (*model)[factor_id].variableIndex(0);
-                }
-
-                std::vector<size_t> sub_variable_indices((*model)[factor_id].numberOfVariables());
-                bool all_variables_inside_submodel = true;
-
-                std::stringstream factor_output;
-                factor_output << "Adding factor: " << factor_id << " to submodel " << sub_model_id << " with factors: ";
-
-                for(size_t i = 0;
-                    i < (*model)[factor_id].numberOfVariables() && all_variables_inside_submodel;
-                    ++i) {
-                    const size_t var_id = (*model)[factor_id].variableIndex(i);
-                    sub_variable_indices[i] = sub_variable_map[var_id];
-                    factor_output << var_id << " ";
-
-                    bool found = (sub_variable_map[var_id] != std::numeric_limits<std::size_t>::max());
-
-                    all_variables_inside_submodel = all_variables_inside_submodel && found;
-                }
-
-                if(all_variables_inside_submodel)
-                {
-                    decomposition.addSubFactor(sub_model_id, factor_id, sub_variable_indices);
-                    LOG(pgmlink::logDEBUG2) << factor_output.str();
-                }
-            }
-        }
+        decomposition_add_variables(sub_model_id, decomposition, sub_variable_map, num_time_steps);
+        decomposition_add_factors(sub_model_id, decomposition, sub_variable_map, model);
     }
     decomposition.reorder();
     LOG(pgmlink::logDEBUG2) << "done reordering, completing... ";
