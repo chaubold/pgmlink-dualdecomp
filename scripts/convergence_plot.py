@@ -2,7 +2,7 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 
-def plot_bounds(bounds, violated_constraints):
+def plot_bounds(bounds, violated_constraints, output_name):
     # find when new lines start
     indices = list(zip(*bounds)[0])
     upper_bounds = list(zip(*bounds)[1])
@@ -29,7 +29,7 @@ def plot_bounds(bounds, violated_constraints):
         print(upper_bounds[first_index:last_index])
         print(lower_bounds[first_index:last_index])
 
-    b.savefig("bounds.png", dpi=800)
+    b.savefig("bounds_"+output_name+".png", dpi=800)
 
     c = plt.figure()
     for i in xrange(len(curve_starts) - 1):
@@ -41,10 +41,10 @@ def plot_bounds(bounds, violated_constraints):
         plt.plot(indices[first_index:last_index], violated_constraints[first_index:last_index], "o")
         plt.legend(("Violated Constraints"), loc='upper left', bbox_to_anchor=(1, 0.5))
 
-    c.savefig("constraints.png", dpi=800)
+    c.savefig("constraints_"+output_name+".png", dpi=800)
 
 
-def parse_file(file):
+def parse_file(file, output_name):
     bounds = []
     violated_constraints = []
 
@@ -67,7 +67,7 @@ def parse_file(file):
         elif "Min number violated constraints: " in line:
             violated_constraints.append(int(line[line.rindex(" "):].strip()))
 
-    plot_bounds(bounds, violated_constraints)
+    plot_bounds(bounds, violated_constraints, output_name)
 
 
 
@@ -85,7 +85,8 @@ def main():
 
     try:
         file = open(filename)
-        parse_file(file)
+	output_name = filename.replace("output_","").replace(".log","")
+        parse_file(file, output_name)
 
         # do something
     except IOError:
