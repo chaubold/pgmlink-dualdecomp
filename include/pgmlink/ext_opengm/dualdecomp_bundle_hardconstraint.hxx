@@ -281,6 +281,8 @@ infer(VisitorType& visitor)
             // Solve subproblems
             for(size_t subModelId=0; subModelId<subGm_.size(); ++subModelId){
                 InfType inf(subGm_[subModelId],para_.subPara_);
+                hardConstraintConfigurator_(subGm_[subModelId], subModelId, inf);
+                //inf.setStartingPoint(subStates_[subModelId].begin());
                 inf.infer();
                 inf.arg(subStates_[subModelId]);
             }
@@ -436,6 +438,7 @@ int DualDecompositionBundleWithHardConstraints<GM,INF,DUALBLOCK>::evaluate
     //#endif
     for(size_t subModelId=0; subModelId<subGm_.size(); ++subModelId){
         InfType inf(subGm_[subModelId],para_.subPara_);
+        hardConstraintConfigurator_(subGm_[subModelId], subModelId, inf);
         inf.infer();
         inf.arg(subStates_[subModelId]);
     }
