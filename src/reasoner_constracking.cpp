@@ -260,7 +260,7 @@ void ConservationTracking::add_appearance_nodes(const HypothesesGraph& g) {
         // store these nodes by timestep,
         // so that we can get all nodes per timestep for decomposition
         HypothesesGraph::node_timestep_map& timestep_map = g.get(node_timestep());
-        size_t timestep = timestep_map[n];
+        size_t timestep = timestep_map[n] * NODE_TYPES_PER_TIMESTEP + APPEARANCE_NODE;
         nodes_by_timestep_[timestep].push_back(pgm_->Model()->numberOfVariables() - 1);
 
         LOG(pgmlink::logDEBUG3) << "Node " << pgm_->Model()->numberOfVariables() - 1 << " is APPEARANCE at timestep " << timestep;
@@ -281,12 +281,8 @@ void ConservationTracking::add_disappearance_nodes(const HypothesesGraph& g) {
         // so that we can get all nodes per timestep for decomposition.
         // Disappearance nodes are used as duals and thus get duplicated to the next timestep
         HypothesesGraph::node_timestep_map& timestep_map = g.get(node_timestep());
-        size_t timestep = timestep_map[n];
+        size_t timestep = timestep_map[n] * NODE_TYPES_PER_TIMESTEP + DISAPPEARANCE_NODE;
         nodes_by_timestep_[timestep].push_back(pgm_->Model()->numberOfVariables() - 1);
-        if(timestep > 0)
-        {
-            nodes_by_timestep_[timestep - 1].push_back(pgm_->Model()->numberOfVariables() - 1);
-        }
 
         LOG(pgmlink::logDEBUG3) << "Node " << pgm_->Model()->numberOfVariables() - 1 << " is DISAPPEARANCE at timestep " << timestep;
 
@@ -308,7 +304,7 @@ void ConservationTracking::add_transition_nodes(const HypothesesGraph& g) {
         HypothesesGraph::OutArcIt out_arc(g, a);
         HypothesesGraph::Node n = g.baseNode(out_arc);
 
-        size_t timestep = timestep_map[n];
+        size_t timestep = timestep_map[n] * NODE_TYPES_PER_TIMESTEP + TRANSITION_NODE;
         nodes_by_timestep_[timestep].push_back(pgm_->Model()->numberOfVariables() - 1);
 
         LOG(pgmlink::logDEBUG3) << "Node " << pgm_->Model()->numberOfVariables() - 1 << " is TRANSITION at timestep " << timestep;
@@ -333,7 +329,7 @@ void ConservationTracking::add_division_nodes(const HypothesesGraph& g) {
             // store these nodes by timestep,
             // so that we can get all nodes per timestep for decomposition
             HypothesesGraph::node_timestep_map& timestep_map = g.get(node_timestep());
-            size_t timestep = timestep_map[n];
+            size_t timestep = timestep_map[n] * NODE_TYPES_PER_TIMESTEP + DIVISION_NODE;
             nodes_by_timestep_[timestep].push_back(pgm_->Model()->numberOfVariables() - 1);
             LOG(pgmlink::logDEBUG3) << "Node " << pgm_->Model()->numberOfVariables() - 1 << " is DIVISION at timestep " << timestep;
 

@@ -15,6 +15,13 @@
 namespace pgmlink {
 class Traxel;
 
+enum {
+    DISAPPEARANCE_NODE = 0,
+    APPEARANCE_NODE,
+    TRANSITION_NODE,
+    DIVISION_NODE,
+    NODE_TYPES_PER_TIMESTEP
+} NodeTimesteps;
 
 class ConservationTracking : public Reasoner {
 public:

@@ -322,14 +322,13 @@ void pgmlink::DualDecompositionConservationTracking::decompose_graph(
         GraphicalModelType* model,
         DualDecompositionSubGradient::Parameter& dd_parameter)
 {
-    opengm::GraphicalModelDecomposer<GraphicalModelType> decomposer;
     opengm::GraphicalModelDecomposer<GraphicalModelType>::DecompositionType decomposition(
                 model->numberOfVariables(),model->numberOfFactors(),0);
 
-    const size_t num_time_steps = nodes_by_timestep_.size();
-    size_t num_sub_models = num_time_steps / timesteps_per_block_;
+    const size_t num_time_steps = nodes_by_timestep_.rbegin()->first + 1; // key of last element is largest timestep number!
+    size_t num_sub_models = num_time_steps / (timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP);
 
-    if(num_time_steps % timesteps_per_block_ != 0)
+    if(num_time_steps % (timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP) != 0)
     {
         num_sub_models++;
     }
@@ -341,17 +340,13 @@ void pgmlink::DualDecompositionConservationTracking::decompose_graph(
         std::vector<size_t> sub_variable_map(model->numberOfVariables(),
                                              std::numeric_limits<std::size_t>::max());
 
-        // using overlap, the size of each submodel becomes
-        // timestep_per_block + 2 * (overlapping_frames - 1)
-        // but the first and last submodel only need one overlap
-        size_t first_timestep = sub_model_id * timesteps_per_block_;
-        if(first_timestep > num_overlapping_timesteps_)
-        {
-            first_timestep -= num_overlapping_timesteps_ - 1;
-        }
+        size_t first_timestep = sub_model_id * timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP;
 
-        size_t last_timestep = std::min((sub_model_id + 1) * timesteps_per_block_
-                                        + num_overlapping_timesteps_ - 1, num_time_steps);
+        // each submodel includes at least the next timestep's disappearance and appearance node,
+        // which then become the 2 dual variables
+        size_t last_timestep = std::min((sub_model_id + 1) * timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP
+                                        + APPEARANCE_NODE,
+                                        num_time_steps);
 
         // add all variables to their submodels
         for(size_t timestep = first_timestep; timestep < last_timestep; ++timestep)
