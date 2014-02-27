@@ -356,16 +356,18 @@ void pgmlink::DualDecompositionConservationTracking::decomposition_add_variables
     {
         // overlap complete timesteps, but subproblems start at the A node
         // such that the overlap problem can include the A-V hardconstraint
-        first_timestep = sub_model_id * timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP
-                + APPEARANCE_NODE;
+        first_timestep = sub_model_id * timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP;
 
         // each submodel includes ,
         // which then become the 2 dual variables
-        last_timestep = std::min((sub_model_id + 1)
-                                 * (timesteps_per_block_ + num_overlapping_timesteps_ - 1)
-                                 * NODE_TYPES_PER_TIMESTEP
+        last_timestep = std::min(first_timestep
+                                 + (timesteps_per_block_ + num_overlapping_timesteps_ - 1)
+                                    * NODE_TYPES_PER_TIMESTEP
                                  + DISAPPEARANCE_NODE,
                                  num_timesteps);
+
+        if(sub_model_id > 0)
+                first_timestep += APPEARANCE_NODE;
     }
     else
     {
@@ -374,9 +376,10 @@ void pgmlink::DualDecompositionConservationTracking::decomposition_add_variables
 
         // each submodel includes at least the next timestep's disappearance and appearance node,
         // which then become the 2 dual variables
-        last_timestep = std::min((sub_model_id + 1) * timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP
-                                        + APPEARANCE_NODE,
-                                        num_timesteps);
+        last_timestep = std::min(first_timestep
+                                 + timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP
+                                 + APPEARANCE_NODE,
+                                 num_timesteps);
     }
 
     // add all variables to their submodels
@@ -451,8 +454,9 @@ void pgmlink::DualDecompositionConservationTracking::decomposition_add_overlap_s
     {
         size_t first_timestep = (overlap + 1) * timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP;
 
-        size_t last_timestep = std::min((overlap + num_overlapping_timesteps_ - 1)
-                                        * timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP
+        size_t last_timestep = std::min(first_timestep
+                                        + (num_overlapping_timesteps_ + timesteps_per_block_)
+                                        * NODE_TYPES_PER_TIMESTEP
                                         + APPEARANCE_NODE,
                                  nodes_by_timestep_.rbegin()->first); // num_timesteps
 
@@ -503,7 +507,6 @@ void pgmlink::DualDecompositionConservationTracking::decompose_graph(
     LOG(pgmlink::logDEBUG2) << "done reordering, completing... ";
     decomposition.complete();
 
-    //dd_parameter.decomposition_ = decomposer.decomposeIntoClosedBlocks(*model, 2);
     dd_parameter.decomposition_ = decomposition;
     LOG(pgmlink::logINFO) << "Decomposed into " << dd_parameter.decomposition_.numberOfSubModels()
               << " submodels";
