@@ -318,22 +318,15 @@ void pgmlink::DualDecompositionConservationTracking::count_connected_components(
     std::exit(0);
 }
 
-void pgmlink::DualDecompositionConservationTracking::decomposition_add_variables(
+void pgmlink::DualDecompositionConservationTracking::decomposition_add_variables_in_timestep_range(
         size_t sub_model_id,
         opengm::GraphicalModelDecomposer<GraphicalModelType>::DecompositionType& decomposition,
         std::vector<size_t>& sub_variable_map,
-        const size_t num_time_steps)
+        size_t first_timestep,
+        size_t last_timestep)
 {
-    size_t first_timestep = sub_model_id * timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP;
-
-    // each submodel includes at least the next timestep's disappearance and appearance node,
-    // which then become the 2 dual variables
-    size_t last_timestep = std::min((sub_model_id + 1) * timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP
-                                    + APPEARANCE_NODE,
-                                    num_time_steps);
-
-    // add all variables to their submodels
-    for(size_t timestep = first_timestep; timestep < last_timestep; ++timestep)
+    // last timestep is included in the range!!
+    for(size_t timestep = first_timestep; timestep <= last_timestep; ++timestep)
     {
         std::vector<size_t>& nodes_at_timestep = nodes_by_timestep_[timestep];
 
@@ -349,6 +342,46 @@ void pgmlink::DualDecompositionConservationTracking::decomposition_add_variables
             }
         }
     }
+}
+
+void pgmlink::DualDecompositionConservationTracking::decomposition_add_variables(
+        size_t sub_model_id,
+        opengm::GraphicalModelDecomposer<GraphicalModelType>::DecompositionType& decomposition,
+        std::vector<size_t>& sub_variable_map,
+        const size_t num_timesteps)
+{
+    size_t first_timestep, last_timestep;
+
+    if(num_overlapping_timesteps_ > 1)
+    {
+        // overlap complete timesteps, but subproblems start at the A node
+        // such that the overlap problem can include the A-V hardconstraint
+        first_timestep = sub_model_id * timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP
+                + APPEARANCE_NODE;
+
+        // each submodel includes ,
+        // which then become the 2 dual variables
+        last_timestep = std::min((sub_model_id + 1)
+                                 * (timesteps_per_block_ + num_overlapping_timesteps_ - 1)
+                                 * NODE_TYPES_PER_TIMESTEP
+                                 + DISAPPEARANCE_NODE,
+                                 num_timesteps);
+    }
+    else
+    {
+        // just standard overlapping, duplicating the V-A node pair into both subproblems
+        first_timestep = sub_model_id * timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP;
+
+        // each submodel includes at least the next timestep's disappearance and appearance node,
+        // which then become the 2 dual variables
+        last_timestep = std::min((sub_model_id + 1) * timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP
+                                        + APPEARANCE_NODE,
+                                        num_timesteps);
+    }
+
+    // add all variables to their submodels
+    decomposition_add_variables_in_timestep_range(sub_model_id, decomposition, sub_variable_map,
+                                                  first_timestep, last_timestep);
 }
 
 void pgmlink::DualDecompositionConservationTracking::decomposition_add_factors(
@@ -400,6 +433,39 @@ void pgmlink::DualDecompositionConservationTracking::decomposition_add_factors(
     }
 }
 
+void pgmlink::DualDecompositionConservationTracking::decomposition_add_overlap_submodels(
+        opengm::GraphicalModelDecomposer<GraphicalModelType>::DecompositionType& decomposition
+        )
+{
+    // nothing to do if we don't have an overlap
+    if(decomposition.numberOfSubModels() < 2)
+    {
+        return;
+    }
+
+    // for each overlap, create a submodel that spans the overlap
+    // and one more node in each direction
+    size_t num_overlaps = decomposition.numberOfSubModels() - 1;
+
+    for(size_t overlap = 0; overlap < num_overlaps; ++overlap)
+    {
+        size_t first_timestep = (overlap + 1) * timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP;
+
+        size_t last_timestep = std::min((overlap + num_overlapping_timesteps_ - 1)
+                                        * timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP
+                                        + APPEARANCE_NODE,
+                                 nodes_by_timestep_.rbegin()->first); // num_timesteps
+
+        size_t sub_model_id = decomposition.addSubModel();
+        std::vector<size_t> sub_variable_map(pgm_->Model()->numberOfVariables(),
+                                             std::numeric_limits<std::size_t>::max());
+
+        decomposition_add_variables_in_timestep_range(sub_model_id, decomposition, sub_variable_map,
+                                                      first_timestep, last_timestep);
+        decomposition_add_factors(sub_model_id, decomposition, sub_variable_map, pgm_->Model());
+    }
+}
+
 void pgmlink::DualDecompositionConservationTracking::decompose_graph(
         GraphicalModelType* model,
         DualDecompositionSubGradient::Parameter& dd_parameter)
@@ -408,10 +474,10 @@ void pgmlink::DualDecompositionConservationTracking::decompose_graph(
                 model->numberOfVariables(),model->numberOfFactors(),0);
 
     // key of last element is largest timestep number!
-    const size_t num_time_steps = nodes_by_timestep_.rbegin()->first + 1;
-    size_t num_sub_models = num_time_steps / (timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP);
+    const size_t num_timesteps = nodes_by_timestep_.rbegin()->first;
+    size_t num_sub_models = num_timesteps / (timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP);
 
-    if(num_time_steps % (timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP) != 0)
+    if(num_timesteps % (timesteps_per_block_ * NODE_TYPES_PER_TIMESTEP) != 0)
     {
         num_sub_models++;
     }
@@ -424,9 +490,15 @@ void pgmlink::DualDecompositionConservationTracking::decompose_graph(
         std::vector<size_t> sub_variable_map(model->numberOfVariables(),
                                              std::numeric_limits<std::size_t>::max());
 
-        decomposition_add_variables(sub_model_id, decomposition, sub_variable_map, num_time_steps);
+        decomposition_add_variables(sub_model_id, decomposition, sub_variable_map, num_timesteps);
         decomposition_add_factors(sub_model_id, decomposition, sub_variable_map, model);
     }
+
+    if(num_overlapping_timesteps_ > 1)
+    {
+        decomposition_add_overlap_submodels(decomposition);
+    }
+
     decomposition.reorder();
     LOG(pgmlink::logDEBUG2) << "done reordering, completing... ";
     decomposition.complete();

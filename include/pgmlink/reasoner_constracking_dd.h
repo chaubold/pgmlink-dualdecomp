@@ -83,16 +83,23 @@ protected:
     virtual void add_constraints( const HypothesesGraph& );
     virtual size_t cplex_id(size_t opengm_id, size_t state);
     void count_connected_components(GraphicalModelType *model);
-    void decomposition_add_variables(
+    void decomposition_add_variables(size_t sub_model_id,
+            opengm::GraphicalModelDecomposer<GraphicalModelType>::DecompositionType& decomposition,
+            std::vector<size_t>& sub_variable_map,
+            const size_t num_timesteps);
+    void decomposition_add_variables_in_timestep_range(
             size_t sub_model_id,
             opengm::GraphicalModelDecomposer<GraphicalModelType>::DecompositionType& decomposition,
             std::vector<size_t>& sub_variable_map,
-            const size_t num_time_steps);
+            size_t first_timestep,
+            size_t last_timestep);
     void decomposition_add_factors(
             size_t sub_model_id,
             opengm::GraphicalModelDecomposer<GraphicalModelType>::DecompositionType& decomposition,
             std::vector<size_t>& sub_variable_map,
             GraphicalModelType* model);
+    void decomposition_add_overlap_submodels(
+            opengm::GraphicalModelDecomposer<GraphicalModelType>::DecompositionType &decomposition);
 
 
     DualDecompositionSubGradient* dd_optimizer_;
